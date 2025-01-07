@@ -215,11 +215,14 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Your JavaScript code would go here (omitted as requested). -->
 <script>
     // --------------------------------------
     // Global Variables
     // --------------------------------------
+    let activeFile = {
+        name: null,
+        source: null  // 'upload' or 'existing'
+    };
     let currentPlotlyFig = null;  // store the last Plotly figure
     let currentFile = null;      // store the current file being visualized
 
@@ -306,6 +309,53 @@
     }
     
     // --------------------------------------
+    // File Selection Management
+    // --------------------------------------
+    function updateFileSelectionUI(filename, source) {
+        // Update active file tracking
+        activeFile.name = filename;
+        activeFile.source = source;
+
+        // Update UI elements
+        const uploadArea = document.getElementById('upload-area');
+        const fileSelect = document.getElementById('existing-files');
+        const activeFileIndicator = document.getElementById('active-file-indicator');
+
+        // Clear previous selection
+        uploadArea.classList.remove('border-green-500', 'border-gray-300');
+        uploadArea.classList.add(source === 'upload' ? 'border-green-500' : 'border-gray-300');
+        
+        if (source === 'existing') {
+            fileSelect.value = filename;
+            // Add visual indicator for selected file
+            if (!activeFileIndicator) {
+                const indicator = document.createElement('div');
+                indicator.id = 'active-file-indicator';
+                indicator.className = 'mt-2 text-sm text-green-600 flex items-center';
+                indicator.innerHTML = `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Active file: ${filename}
+                `;
+                fileSelect.parentNode.appendChild(indicator);
+            } else {
+                activeFileIndicator.innerHTML = `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Active file: ${filename}
+                `;
+            }
+        } else {
+            fileSelect.value = '';
+            if (activeFileIndicator) {
+                activeFileIndicator.remove();
+            }
+        }
+    }
+
+    // --------------------------------------
     // On DOMContentLoaded
     // --------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
@@ -314,6 +364,12 @@
             .then(res => res.json())
             .then(data => {
                 const fileSelect = document.getElementById('existing-files');
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Select an existing file --';
+                fileSelect.appendChild(defaultOption);
+                // Add file options
                 data.files.forEach(filename => {
                     const option = document.createElement('option');
                     option.value = filename;
@@ -321,9 +377,27 @@
                     fileSelect.appendChild(option);
                 });
             })
-            .catch(err => console.error('Error fetching file list:', err));
+            .catch(err => {
+                console.error('Error fetching file list:', err);
+                showError('Failed to load existing files');
+            });
     
-        // 2) Handle "browse" file input
+        // 2) Handle file selection
+        // Handle existing file selection
+        const fileSelect = document.getElementById('existing-files');
+        if (fileSelect) {
+            fileSelect.addEventListener('change', (e) => {
+                const selectedFile = e.target.value;
+                if (selectedFile) {
+                    updateFileSelectionUI(selectedFile, 'existing');
+                    loadSelectedFile(selectedFile);
+                } else {
+                    updateFileSelectionUI(null, null);
+                }
+            });
+        }
+
+        // Handle file upload via browse button
         const fileInput = document.getElementById('file-input');
         if (fileInput) {
             fileInput.addEventListener('change', (e) => {
@@ -468,8 +542,8 @@
         const file = files[0];
         if (!file) return;
 
-        // Clear dropdown selection if any
-        document.getElementById('existing-files').value = '';
+        // Clear existing file selection
+        updateFileSelectionUI(null, null);
 
         // Show upload progress UI
         const uploadArea = document.getElementById('upload-area');
@@ -477,6 +551,9 @@
             console.error('Upload area not found');
             return;
         }
+
+        // Clear any existing data mapping
+        document.getElementById('data-mapping').classList.add('hidden');
 
         // Basic client-side validation
         const maxSize = 50 * 1024 * 1024; // 50MB
@@ -801,7 +878,10 @@
     }
 
     function handleUploadSuccess(data) {
-        // Update the upload area UI
+        // Update file selection status
+        updateFileSelectionUI(data.filename, 'upload');
+
+        // Update the upload area UI with file details
         const uploadArea = document.getElementById('upload-area');
         if (!uploadArea) return;
 
@@ -818,6 +898,7 @@
                             </span>
                         </div>
                     </div>
+                    <div class="mt-2 text-xs text-green-600">Active file for visualization</div>
                 </div>
                 <button onclick="resetFileUpload()" class="text-gray-400 hover:text-gray-600">
                     <i data-feather="x" class="w-4 h-4"></i>
@@ -845,11 +926,16 @@
     }
 
     function resetFileUpload() {
+        // Reset file selection state
+        updateFileSelectionUI(null, null);
+
+        // Reset upload area
         const uploadArea = document.getElementById('upload-area');
         if (!uploadArea) return;
 
         uploadArea.dataset.filename = '';
-        uploadArea.classList.remove('uploading');
+        uploadArea.classList.remove('uploading', 'border-green-500');
+        uploadArea.classList.add('border-gray-300');
         uploadArea.innerHTML = `
             <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
             <p class="text-sm text-gray-600">
@@ -863,9 +949,20 @@
         `;
         feather.replace();
 
-        // Clear the data mapping section
+        // Clear all selections and previews
         document.getElementById('data-mapping').classList.add('hidden');
         document.getElementById('existing-files').value = '';
+        document.getElementById('viz-preview').innerHTML = '';
+        
+        // Reset all selectors
+        ['viz-type', 'x-column', 'y-column', 'group-by', 'y-aggregation'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.value = '';
+        });
+
+        // Remove any file indicators
+        const indicator = document.getElementById('active-file-indicator');
+        if (indicator) indicator.remove();
     }
 
     function cancelUpload() {
@@ -876,6 +973,59 @@
     }
 
     // Function to populate column selectors with data from the uploaded file
+    // Function to load data from a selected existing file
+    function loadSelectedFile(filename) {
+        // Show loading state
+        const uploadArea = document.getElementById('upload-area');
+        uploadArea.innerHTML = `
+            <div class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="ml-2">Loading file...</span>
+            </div>
+        `;
+
+        // Fetch file data
+        fetch(`/viz/data/${encodeURIComponent(filename)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load file data');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update UI with file details
+                uploadArea.innerHTML = `
+                    <div class="flex items-center justify-between p-4">
+                        <div class="flex-1">
+                            <div class="flex items-center">
+                                <i data-feather="file-text" class="w-5 h-5 text-green-500 mr-2"></i>
+                                <div>
+                                    <span class="text-sm font-medium text-gray-900">${filename}</span>
+                                    <span class="text-xs text-gray-500 block">
+                                        ${data.data.length} rows
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs text-green-600">Active file for visualization</div>
+                        </div>
+                    </div>
+                `;
+                feather.replace();
+
+                // Show the data mapping section and populate columns
+                document.getElementById('data-mapping').classList.remove('hidden');
+                populateColumnSelectors(data.columns);
+
+                // Store filename for visualization
+                uploadArea.dataset.filename = filename;
+            })
+            .catch(error => {
+                console.error('Error loading file:', error);
+                showError('Failed to load file: ' + error.message);
+                updateFileSelectionUI(null, null);
+            });
+    }
+
     function populateColumnSelectors(columns) {
         // Add empty option for optional fields
         const emptyOption = document.createElement('option');
