@@ -7,9 +7,14 @@
     <title>{% block title %}VisEcosystem{% endblock %}</title>
     
     {# Essential Libraries #}
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    {# Styles #}
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/visualization-editor.css') }}" rel="stylesheet">
     
     {# Additional head content #}
     {% block head %}{% endblock %}
@@ -42,7 +47,7 @@
                     <a href="/viz/templates" class="text-gray-600 hover:text-gray-900">
                         <i data-feather="layout" class="w-5 h-5"></i>
                     </a>
-                    <div class="relative" x-data="{ open: false }">
+                    <div class="relative">
                         <button class="text-gray-600 hover:text-gray-900">
                             <i data-feather="settings" class="w-5 h-5"></i>
                         </button>
@@ -69,35 +74,23 @@
         {% block content %}{% endblock %}
     </main>
 
+    {# Error Toast Template #}
+    <template id="error-toast-template">
+        <div class="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
+            <div class="flex items-center">
+                <i data-feather="alert-circle" class="w-5 h-5 mr-2"></i>
+                <span class="error-message"></span>
+                <button class="ml-4 text-red-700 hover:text-red-900" onclick="this.parentElement.parentElement.remove()">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+
     {# Core Scripts #}
-    <script src="{{ url_for('static', filename='js/visualization-manager.js') }}"></script>
     <script>
         // Initialize Feather Icons
         feather.replace();
-
-        // Handle file drag and drop
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.classList.add('border-indigo-500');
-        }
-
-        function handleDragLeave(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.classList.remove('border-indigo-500');
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.classList.remove('border-indigo-500');
-            
-            const files = e.dataTransfer.files;
-            if (files.length) {
-                handleFiles(files);
-            }
-        }
 
         // Global error handling
         window.onerror = function(msg, url, lineNo, columnNo, error) {
@@ -117,7 +110,16 @@
             }).format(date);
         }
     </script>
-    
+
+    {# Module Scripts - Note the type="module" attribute #}
+    <script type="module" src="{{ url_for('static', filename='js/modules/utils/error-handling.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/utils/data-processing.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/visualization-state.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/file-manager.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/plotly-manager.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/ui-manager.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/visualization-editor.js') }}"></script>
+
     {# Additional page-specific scripts #}
     {% block scripts %}{% endblock %}
 </body>

@@ -6,7 +6,7 @@ from flask import (
     request, 
     jsonify, 
     current_app,
-    abort
+    abort, url_for, flash, redirect
 )
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -196,17 +196,28 @@ def create():
 @viz_bp.route("/<int:viz_id>/edit", methods=["GET"])
 def edit(viz_id):
     """
-    Display visualization edit interface.
+    Display visualization edit interface with existing visualization data.
     """
     visualization = Visualization.query.get_or_404(viz_id)
     
-    return render_template(
-        "visualizations/create.html",  # We'll use the same template but with edit mode
-        template_type=visualization.chart_type,
-        filename=visualization.source_file,
-        plotly_config=current_app.config.get("PLOTLY_CONFIG", {}),
-        visualization=visualization.to_dict()
-    )
+    try:
+        # Ensure the config is valid JSON
+        viz_config = json.loads(visualization.config) if visualization.config else {}
+        
+        return render_template(
+            "visualizations/create.html",
+            visualization={
+                'id': visualization.id,
+                'name': visualization.name,
+                'description': visualization.description,
+                'config': viz_config,
+                'chart_type': visualization.chart_type,
+                'source_file': visualization.source_file
+            }
+        )
+    except json.JSONDecodeError:
+        flash('Error loading visualization configuration', 'error')
+        return redirect(url_for('index'))
 
 
 # Supported chart types for demonstration
@@ -344,33 +355,43 @@ def preview():
         return jsonify({"error": f"Failed to generate preview: {str(e)}"}), 500
 
 
+# In routes.py, add the index route and update the save route:
+
+@viz_bp.route("/", methods=["GET"])
+def index():
+    """
+    Display the visualization index page with all saved visualizations.
+    """
+    visualizations = Visualization.query.order_by(Visualization.updated_at.desc()).all()
+    return render_template(
+        "visualizations/index.html",
+        recent_vizs=visualizations
+    )
+
 @viz_bp.route('/save', methods=['POST'])
 def save_viz():
     """
-    Saves a visualization to the database with metadata and Plotly configuration.
+    Saves or updates a visualization with metadata and Plotly configuration.
     """
     payload = request.json
+    viz_id = payload.get('id')
+    name = payload.get('name', 'Untitled')
+    description = payload.get('description', '')
     filename = payload.get('filename')
-    config = payload.get('config')  # Contains 'data' and 'layout'
-    title = payload.get('title') or "Untitled"
-    description = payload.get('description') or ""
+    config = payload.get('config')
     chart_type = payload.get('chart_type', 'custom')
-    viz_id = payload.get('id')  # For updating existing visualizations
 
     if not config:
         return jsonify({'error': 'Missing visualization configuration'}), 400
 
     try:
-        # Validate the JSON structure
-        config_str = json.dumps(config)  # will raise TypeError if not serializable
+        # Ensure the config is valid JSON
+        config_str = json.dumps(config)
         
         if viz_id:
             # Update existing visualization
-            visualization = Visualization.query.get(viz_id)
-            if not visualization:
-                return jsonify({'error': 'Visualization not found'}), 404
-            
-            visualization.name = title
+            visualization = Visualization.query.get_or_404(viz_id)
+            visualization.name = name
             visualization.description = description
             visualization.config = config_str
             visualization.chart_type = chart_type
@@ -378,7 +399,7 @@ def save_viz():
         else:
             # Create new visualization
             visualization = Visualization(
-                name=title,
+                name=name,
                 description=description,
                 config=config_str,
                 chart_type=chart_type,
@@ -391,16 +412,12 @@ def save_viz():
         return jsonify({
             'success': True,
             'id': visualization.id,
-            'message': 'Visualization saved successfully',
-            'visualization': visualization.to_dict()
-        }), 200
+            'message': 'Visualization saved successfully'
+        })
 
-    except TypeError as e:
-        return jsonify({'error': f'Invalid JSON: {str(e)}'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error saving visualization: {str(e)}'}), 500
-
+        return jsonify({'error': str(e)}), 500
 
 @viz_bp.route('/<int:viz_id>', methods=['GET'])
 def get_visualization(viz_id):
