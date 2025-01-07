@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualization Editor</title>
+    
+    <!-- Styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="grid two-columns">
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <form id="visualization-form" class="space-y-6">
+                    <!-- Metadata -->
+                    <div class="form-group">
+                        <label for="viz-name" class="form-label">Name</label>
+                        <input type="text" id="viz-name" name="name" class="form-input" required
+                               placeholder="Enter visualization name">
+                        <div class="validation-message"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="viz-description" class="form-label">Description</label>
+                        <textarea id="viz-description" name="description" class="form-textarea"
+                                placeholder="Describe your visualization"></textarea>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="form-group">
+                        <div id="upload-area" class="upload-area">
+                            <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+                            <p class="text-sm text-gray-600">
+                                Drop your data file here or
+                                <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                                    <span>browse</span>
+                                    <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                                </label>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-2">Supports CSV, Excel files</p>
+                        </div>
+                    </div>
+
+                    <!-- Data Mapping -->
+                    <div id="data-mapping" class="hidden">
+                        <div class="form-group">
+                            <label for="viz-type" class="form-label">Chart Type</label>
+                            <select id="viz-type" name="chartType" class="form-select" required>
+                                <option value="line">Line Chart</option>
+                                <option value="bar">Bar Chart</option>
+                                <option value="scatter">Scatter Plot</option>
+                                <option value="pie">Pie Chart</option>
+                                <option value="histogram">Histogram</option>
+                                <option value="box">Box Plot</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="x-column" class="form-label">X-Axis</label>
+                            <select id="x-column" name="xAxis" class="form-select" required>
+                                <option value="">-- Select column --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y-column" class="form-label">Y-Axis</label>
+                            <select id="y-column" name="yAxis" class="form-select" required>
+                                <option value="">-- Select column --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="group-by" class="form-label">Group By</label>
+                            <select id="group-by" name="groupBy" class="form-select">
+                                <option value="">-- Select column --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="y-aggregation" class="form-label">Aggregation</label>
+                            <select id="y-aggregation" name="aggregation" class="form-select">
+                                <option value="none">None</option>
+                                <option value="sum">Sum</option>
+                                <option value="avg">Average</option>
+                                <option value="min">Minimum</option>
+                                <option value="max">Maximum</option>
+                                <option value="count">Count</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <div id="advanced-settings" class="hidden">
+                        <h3 class="text-lg font-semibold mb-4">Advanced Settings</h3>
+                        
+                        <div class="form-group">
+                            <label for="sort-column" class="form-label">Sort By</label>
+                            <select id="sort-column" name="sortBy" class="form-select">
+                                <option value="">-- Select column --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sort-direction" class="form-label">Sort Direction</label>
+                            <select id="sort-direction" name="sortDirection" class="form-select">
+                                <option value="asc">Ascending</option>
+                                <option value="desc">Descending</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="top-n" class="form-label">Limit Results</label>
+                            <input type="number" id="top-n" name="topN" class="form-input"
+                                   placeholder="Enter number of records">
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-between items-center">
+                        <button type="button" id="update-preview-button" class="btn btn-secondary">
+                            Update Preview
+                        </button>
+                        <button type="submit" id="save-visualization-button" class="btn btn-primary">
+                            Save Visualization
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Preview Panel -->
+            <div class="preview-panel">
+                <div class="preview-container">
+                    <div id="viz-preview"></div>
+                </div>
+
+                <div id="code-container" class="code-container hidden mt-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-white">Plotly Configuration</h3>
+                        <button type="button" id="apply-code-button" class="btn btn-secondary">
+                            Apply Changes
+                        </button>
+                    </div>
+                    <textarea id="plotly-json" class="code-editor"></textarea>
+                </div>
+
+                <button type="button" id="toggle-code-button" class="btn btn-secondary mt-4">
+                    Toggle Code View
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status indicators -->
+    <div id="save-status" class="fixed bottom-4 right-4"></div>
+    <div id="error-container" class="error-container"></div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='dist/bundle.js') }}"></script>
+    <script>
+        // Initialize icons
+        feather.replace();
+
+        // Initialize visualization editor
+        const editor = new VisualizationEditor({
+            containerId: 'viz-preview',
+            onSave: async (config) => {
+                const response = await fetch('/viz/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save visualization');
+                }
+                
+                return response.json();
+            },
+            onError: (error) => {
+                console.error('Visualization error:', error);
+            },
+            autoSaveInterval: 30000 // 30 seconds
+        });
+
+        // Load existing configuration if available
+        const configId = new URLSearchParams(window.location.search).get('id');
+        if (configId) {
+            fetch(`/viz/load/${configId}`)
+                .then(response => response.json())
+                .then(config => editor.updateConfig(config))
+                .catch(error => console.error('Failed to load configuration:', error));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+{# templates/visualizations/create.html #}
+{% extends "base.html" %}
+
+{% block title %}{% if visualization %}Edit{% else %}Create{% endif %} Visualization - VisEcosystem{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    {# Remove Plotly from here since it's in base.html already #}
+    <style>
+        .drag-active { border-color: rgb(79, 70, 229) !important; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    {# Rest of your HTML content stays the same until the end #}
+    <!-- Top Bar with Save Status -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+            {% if visualization %}Edit{% else %}Create{% endif %} Visualization
+        </h1>
+        <div class="flex items-center space-x-4">
+            <span id="save-status" class="text-sm text-gray-500"></span>
+            <button id="save-visualization-button" 
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                <span class="mr-2">Save</span>
+                <i data-feather="save" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-3 gap-6">
+        <!-- Left Panel: Configuration -->
+        <div class="col-span-1 space-y-6">
+            <!-- Metadata Section -->
+            <section class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Visualization Details</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="viz-name" class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" id="viz-name" 
+                               value="{{ visualization.name if visualization else '' }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="viz-description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="viz-description" rows="3"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ visualization.description if visualization else '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Source Section -->
+            <section class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Data Source</h2>
+                <div id="upload-area" 
+                     data-filename="{{ visualization.source_file if visualization else '' }}"
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                    <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-600">
+                        Drop your data file here or
+                        <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                            <span>browse</span>
+                            <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                        </label>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">Supports CSV, Excel files</p>
+                </div>
+            </section>
+
+            <!-- Data Mapping Section -->
+            <section id="data-mapping" class="bg-white rounded-lg shadow p-6 hidden">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Data Mapping</h2>
+                <div class="space-y-4">
+                    <!-- Chart Type -->
+                    <div>
+                        <label for="viz-type" class="block text-sm font-medium text-gray-700">Chart Type</label>
+                        <select id="viz-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="line">Line Chart</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="area">Area Chart</option>
+                            <option value="histogram">Histogram</option>
+                            <option value="box">Box Plot</option>
+                            <option value="violin">Violin Plot</option>
+                        </select>
+                    </div>
+
+                    <!-- X-Axis -->
+                    <div>
+                        <label for="x-column" class="block text-sm font-medium text-gray-700">X-Axis</label>
+                        <select id="x-column" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Y-Axis with Aggregation -->
+                    <div>
+                        <label for="y-column" class="block text-sm font-medium text-gray-700">Y-Axis</label>
+                        <select id="y-column" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                        
+                        <label for="y-aggregation" class="block text-sm font-medium text-gray-700 mt-2">Aggregation</label>
+                        <select id="y-aggregation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="none">None</option>
+                            <option value="sum">Sum</option>
+                            <option value="avg">Average</option>
+                            <option value="count">Count</option>
+                            <option value="min">Min</option>
+                            <option value="max">Max</option>
+                        </select>
+                    </div>
+
+                    <!-- Group By -->
+                    <div>
+                        <label for="group-by" class="block text-sm font-medium text-gray-700">Group By</label>
+                        <select id="group-by" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">None</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Advanced Settings Section -->
+            <section class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Advanced Settings</h2>
+                <div class="space-y-4">
+                    <!-- Sort Options -->
+                    <div>
+                        <label for="sort-column" class="block text-sm font-medium text-gray-700">Sort By</label>
+                        <select id="sort-column" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">None</option>
+                            <option value="x">X-Axis Values</option>
+                            <option value="y">Y-Axis Values</option>
+                        </select>
+                        
+                        <div class="mt-2">
+                            <label for="sort-direction" class="block text-sm font-medium text-gray-700">Sort Direction</label>
+                            <select id="sort-direction" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="asc">Ascending</option>
+                                <option value="desc">Descending</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Top N Filter -->
+                    <div>
+                        <label for="top-n" class="block text-sm font-medium text-gray-700">
+                            Show Top N Results
+                            <span class="text-xs text-gray-500">(Leave empty for all)</span>
+                        </label>
+                        <input type="number" id="top-n" min="1"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="e.g., 10">
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Panel: Preview & Code -->
+        <div class="col-span-2">
+            <div class="bg-white rounded-lg shadow">
+                <!-- Preview Controls -->
+                <div class="p-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-medium text-gray-900">Preview</h2>
+                        <div class="flex space-x-2">
+                            <button id="update-preview-button"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                                <i data-feather="refresh-cw" class="w-4 h-4 mr-2"></i>
+                                Update Preview
+                            </button>
+                            <button id="toggle-code-button"
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i data-feather="code" class="w-4 h-4 mr-2"></i>
+                                Toggle Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Area -->
+                <div class="p-6">
+                    <div id="viz-preview" class="w-full h-96 border border-gray-200 rounded-lg"></div>
+                </div>
+
+                <!-- Code Editor -->
+                <div id="code-container" class="p-6 border-t border-gray-200 hidden">
+                    <div class="space-y-4">
+                        <label for="plotly-json" class="block text-sm font-medium text-gray-700">
+                            Plotly Configuration
+                        </label>
+                        <textarea id="plotly-json" rows="10"
+                                  class="font-mono text-sm mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  spellcheck="false"></textarea>
+                        <button id="apply-code-button"
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                            <i data-feather="check" class="w-4 h-4 mr-2"></i>
+                            Apply Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast Template -->
+<template id="error-toast-template">
+    <div class="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg">
+        <div class="flex items-center">
+            <i data-feather="alert-circle" class="w-5 h-5 mr-2"></i>
+            <span class="error-message"></span>
+            <button class="ml-4 text-red-700 hover:text-red-900" onclick="this.parentElement.parentElement.remove()">
+                <i data-feather="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+</template>
+{% endblock %}
+</div>
+
+
+{% block scripts %}
+<!-- Initialize visualization editor after all dependencies are loaded -->
+<script type="module">
+    // Import main visualization editor
+    import { VisualizationEditor } from "{{ url_for('static', filename='js/visualization-editor.js') }}";
+    
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Initialize Feather icons
+        if (window.feather) {
+            window.feather.replace();
+        }
+
+        // Get initial configuration if editing
+        const initialConfig = {% if visualization %}
+            {
+                id: {{ visualization.id }},
+                name: "{{ visualization.name }}",
+                description: "{{ visualization.description }}",
+                chart_type: "{{ visualization.chart_type }}",
+                source_file: "{{ visualization.source_file }}",
+                config: {{ visualization.config | tojson | safe if visualization.config else 'null' }}
+            }
+        {% else %}
+            null
+        {% endif %};
+
+        // Create visualization editor instance
+        try {
+            window.editor = new VisualizationEditor({
+                containerId: 'viz-preview',
+                initialConfig: initialConfig,
+                onSave: async (config) => {
+                    try {
+                        const response = await fetch('/viz/save', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(config)
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to save visualization');
+                        }
+
+                        // Show success message
+                        const result = await response.json();
+                        
+                        // Redirect after successful save
+                        window.location.href = '/viz';
+                        
+                        return result;
+                    } catch (error) {
+                        throw new Error(`Error saving visualization: ${error.message}`);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error initializing visualization editor:', error);
+            // Show error in UI
+            const errorToast = document.getElementById('error-toast-template');
+            if (errorToast) {
+                const toast = errorToast.content.cloneNode(true);
+                const messageEl = toast.querySelector('.error-message');
+                if (messageEl) {
+                    messageEl.textContent = `Failed to initialize editor: ${error.message}`;
+                }
+                document.body.appendChild(toast);
+                if (window.feather) window.feather.replace();
+            }
+        }
+    });
+</script>
+{% endblock %}

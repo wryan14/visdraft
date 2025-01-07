@@ -1,0 +1,106 @@
+{# views/visualizations/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Visualizations - VisEcosystem{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">My Visualizations</h1>
+        <a href="{{ url_for('viz.create') }}" 
+           class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+            <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+            New Visualization
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="p-6">
+            {% if recent_vizs %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for viz in recent_vizs %}
+                    <div class="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-lg font-semibold text-gray-900">{{ viz.name }}</h3>
+                                <div class="flex space-x-2">
+                                    <button onclick="editVisualization({{ viz.id }})" 
+                                            class="text-gray-400 hover:text-indigo-600">
+                                        <i data-feather="edit-2" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="deleteVisualization({{ viz.id }})" 
+                                            class="text-gray-400 hover:text-red-600">
+                                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <p class="mt-2 text-sm text-gray-600">
+                                {{ viz.description if viz.description else 'No description provided' }}
+                            </p>
+                            
+                            <div class="mt-4 flex items-center text-sm text-gray-500">
+                                <i data-feather="clock" class="w-4 h-4 mr-1"></i>
+                              
+                            </div>
+                            
+                            <div class="mt-4 flex items-center text-sm text-gray-500">
+                                <i data-feather="{{ viz.chart_type|lower }}" class="w-4 h-4 mr-1"></i>
+                                <span>{{ viz.chart_type }}</span>
+                            </div>
+
+                            <div class="mt-4">
+                                <a href="{{ url_for('viz.edit', viz_id=viz.id) }}" 
+                                   class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200">
+                                    Open Visualization
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <i data-feather="bar-chart-2" class="w-12 h-12 mx-auto text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900">No visualizations yet</h3>
+                    <p class="mt-2 text-sm text-gray-500">Get started by creating your first visualization</p>
+                    <a href="{{ url_for('viz.create') }}" 
+                       class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Create Visualization
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% block page_scripts %}
+<script>
+    function deleteVisualization(vizId) {
+        if (confirm('Are you sure you want to delete this visualization?')) {
+            fetch(`/viz/${vizId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Error deleting visualization');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting visualization');
+            });
+        }
+    }
+
+    function editVisualization(vizId) {
+        window.location.href = `/viz/${vizId}/edit`;
+    }
+</script>
+{% endblock %}
+{% endblock %}

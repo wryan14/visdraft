@@ -1,0 +1,87 @@
+/* static/css/visualization-editor.css */
+
+/* Loading overlay */
+.plot-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* File upload area states */
+.file-upload-area.drag-active {
+    @apply border-indigo-500 bg-indigo-50;
+}
+
+.file-upload-area.uploading {
+    @apply border-indigo-500 bg-indigo-50 cursor-not-allowed;
+}
+
+.file-upload-area.error {
+    @apply border-red-500 bg-red-50;
+}
+
+.file-upload-area.success {
+    @apply border-green-500 bg-green-50;
+}
+
+/* Code editor enhancements */
+.code-editor {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+/* Toast notifications */
+.toast-notification {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+    animation: toast-slide-in 0.3s ease-out;
+}
+
+@keyframes toast-slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Plotly customizations */
+.js-plotly-plot .plotly .modebar {
+    @apply bg-white rounded-lg shadow-sm !important;
+}
+
+.js-plotly-plot .plotly .modebar-btn {
+    @apply text-gray-600 hover:text-indigo-600 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .visualization-editor-grid {
+        @apply grid-cols-1;
+    }
+}
+
+/* Print styles */
+@media print {
+    .visualization-editor-controls {
+        display: none !important;
+    }
+    
+    .visualization-preview {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
