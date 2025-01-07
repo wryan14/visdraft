@@ -328,60 +328,83 @@ def preview():
 @viz_bp.route('/viz/save', methods=['POST'])
 def save_viz():
     """
-    Saves a visualization's Plotly config (data + layout) plus metadata like
-    vizName, vizDescription, and the original filename reference.
-    Stores each saved visualization in ../saved_visualizations/<vizName>.json
+    Saves a visualization to the database with metadata and Plotly configuration.
     """
     payload = request.json
     filename = payload.get('filename')
     config = payload.get('config')  # Contains 'data' and 'layout'
-    viz_name = payload.get('vizName') or "Untitled"
-    viz_description = payload.get('vizDescription') or ""
+    title = payload.get('title') or "Untitled"
+    description = payload.get('description') or ""
+    chart_type = payload.get('chart_type', 'custom')
+    viz_id = payload.get('id')  # For updating existing visualizations
 
-    if not filename or not config:
-        return jsonify({'error': 'Missing filename or config'}), 400
+    if not config:
+        return jsonify({'error': 'Missing visualization configuration'}), 400
 
     try:
         # Validate the JSON structure
-        json.dumps(config)  # will raise TypeError if not serializable
+        config_str = json.dumps(config)  # will raise TypeError if not serializable
+        
+        if viz_id:
+            # Update existing visualization
+            visualization = Visualization.query.get(viz_id)
+            if not visualization:
+                return jsonify({'error': 'Visualization not found'}), 404
+            
+            visualization.name = title
+            visualization.description = description
+            visualization.config = config_str
+            visualization.chart_type = chart_type
+            visualization.source_file = filename
+        else:
+            # Create new visualization
+            visualization = Visualization(
+                name=title,
+                description=description,
+                config=config_str,
+                chart_type=chart_type,
+                source_file=filename
+            )
+            db.session.add(visualization)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'id': visualization.id,
+            'message': 'Visualization saved successfully',
+            'visualization': visualization.to_dict()
+        }), 200
+
     except TypeError as e:
         return jsonify({'error': f'Invalid JSON: {str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error saving visualization: {str(e)}'}), 500
 
-    # Wrap the Plotly config with metadata
-    record = {
-        "filename": filename,
-        "vizName": viz_name,
-        "vizDescription": viz_description,
-        "plotlyConfig": config
-    }
 
-    os.makedirs(SAVED_VIZ_DIR, exist_ok=True)
-    save_path = os.path.join(SAVED_VIZ_DIR, f'{viz_name}.json')
+@viz_bp.route('/viz/<int:viz_id>', methods=['GET'])
+def get_visualization(viz_id):
+    """Get a specific visualization by ID"""
+    visualization = Visualization.query.get_or_404(viz_id)
+    return jsonify(visualization.to_dict())
 
-    with open(save_path, 'w') as f:
-        json.dump(record, f, indent=4)
+@viz_bp.route('/viz/<int:viz_id>', methods=['DELETE'])
+def delete_visualization(viz_id):
+    """Delete a specific visualization"""
+    visualization = Visualization.query.get_or_404(viz_id)
+    try:
+        db.session.delete(visualization)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Visualization deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
+@viz_bp.route('/viz/list', methods=['GET'])
+def list_visualizations():
+    """Get all saved visualizations"""
+    visualizations = Visualization.query.order_by(Visualization.updated_at.desc()).all()
     return jsonify({
-        'message': 'Visualization saved successfully',
-        'path': save_path,
-        'metadata': {
-            'vizName': viz_name,
-            'vizDescription': viz_description
-        }
-    }), 200
-
-
-@viz_bp.route('/viz/get/<viz_name>', methods=['GET'])
-def get_saved_viz(viz_name):
-    """
-    Returns the saved visualization JSON, including plotlyConfig, name, description, etc.
-    """
-    os.makedirs(SAVED_VIZ_DIR, exist_ok=True)
-    save_path = os.path.join(SAVED_VIZ_DIR, f'{viz_name}.json')
-    if not os.path.exists(save_path):
-        return jsonify({"error": f"No saved visualization found for {viz_name}"}), 404
-
-    with open(save_path, 'r') as f:
-        record = json.load(f)
-
-    return jsonify(record), 200
+        'visualizations': [viz.to_dict() for viz in visualizations]
+    })
