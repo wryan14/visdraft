@@ -1,0 +1,203 @@
+{# templates/data/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Data Sources - PlotlyVis{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">Data Sources</h1>
+        <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+            <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+            Upload Dataset
+        </button>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900">Upload Dataset</h2>
+                <button onclick="document.getElementById('upload-modal').classList.add('hidden')"
+                        class="text-gray-400 hover:text-gray-500">
+                    <i data-feather="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="upload-area"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event)"
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                <i data-feather="upload-cloud" class="w-12 h-12 mx-auto text-gray-400 mb-4"></i>
+                <p class="text-sm text-gray-600">
+                    Drop your data file here or
+                    <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                        <span>browse</span>
+                        <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                    </label>
+                </p>
+                <p class="text-xs text-gray-500 mt-2">Supports CSV and Excel files</p>
+            </div>
+
+            <div id="upload-progress" class="hidden mt-4">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">Uploading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dataset Grid -->
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {% for dataset in datasets %}
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">{{ dataset.original_filename }}</h3>
+                        <p class="text-sm text-gray-500">{{ dataset.row_count }} rows</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="{{ url_for('data.preview', dataset_id=dataset.id) }}"
+                           class="text-gray-400 hover:text-gray-500"
+                           title="Preview">
+                            <i data-feather="eye" class="w-4 h-4"></i>
+                        </a>
+                        <a href="{{ url_for('data.analyze', dataset_id=dataset.id) }}"
+                           class="text-gray-400 hover:text-gray-500"
+                           title="Analyze">
+                            <i data-feather="bar-chart-2" class="w-4 h-4"></i>
+                        </a>
+                        <a href="{{ url_for('data.download', dataset_id=dataset.id) }}"
+                           class="text-gray-400 hover:text-gray-500"
+                           title="Download">
+                            <i data-feather="download" class="w-4 h-4"></i>
+                        </a>
+                        <button onclick="deleteDataset({{ dataset.id }})"
+                                class="text-gray-400 hover:text-red-500"
+                                title="Delete">
+                            <i data-feather="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-2">
+                    <div class="text-sm">
+                        <span class="text-gray-500">Type:</span>
+                        <span class="text-gray-900">{{ dataset.file_type.upper() }}</span>
+                    </div>
+                    <div class="text-sm">
+                        <span class="text-gray-500">Last used:</span>
+                        <span class="text-gray-900">
+                            {{ dataset.last_used.strftime('%Y-%m-%d %H:%M') if dataset.last_used else 'Never' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <a href="{{ url_for('viz.create', dataset_id=dataset.id) }}"
+                       class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800">
+                        Create visualization
+                        <i data-feather="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full">
+            <div class="text-center py-12 bg-white rounded-lg shadow">
+                <i data-feather="database" class="w-12 h-12 mx-auto text-gray-400 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900">No datasets yet</h3>
+                <p class="mt-2 text-sm text-gray-500">Upload your first dataset to get started</p>
+                <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
+                        class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    <i data-feather="upload" class="w-4 h-4 mr-2"></i>
+                    Upload Dataset
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // File upload handling
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.add('border-indigo-500');
+    }
+
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('border-indigo-500');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('border-indigo-500');
+        
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            uploadFile(files[0]);
+        }
+    }
+
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        if (this.files.length) {
+            uploadFile(this.files[0]);
+        }
+    });
+
+    function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const progressBar = document.querySelector('#upload-progress div');
+        const progressSection = document.getElementById('upload-progress');
+        progressSection.classList.remove('hidden');
+
+        fetch('/data/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            // Reload the page to show the new dataset
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Error uploading file: ' + error.message);
+            progressSection.classList.add('hidden');
+        });
+    }
+
+    // Delete dataset
+    function deleteDataset(datasetId) {
+        if (confirm('Are you sure you want to delete this dataset?')) {
+            fetch(`/data/delete/${datasetId}`, {
+                method: 'POST'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                window.location.reload();
+            })
+            .catch(error => {
+                alert('Error deleting dataset: ' + error.message);
+            });
+        }
+    }
+</script>
+{% endblock %}

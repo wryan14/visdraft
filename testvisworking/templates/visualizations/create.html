@@ -1,0 +1,1082 @@
+{# views/visualizations/create.html #}
+{% extends "base.html" %}
+
+{% block title %}Create Visualization - VisEcosystem{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <!-- Add Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Create Visualization</h1>
+    </div>
+
+    <div class="grid grid-cols-3 gap-6">
+        <!-- Left Panel: Settings -->
+        <div class="col-span-1 space-y-6">
+            <!-- Data Source -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Data Source</h2>
+                
+                <!-- A) Select existing file dropdown -->
+                <div class="mb-4">
+                    <label for="existing-files" class="block text-sm font-medium text-gray-700">
+                        Select from existing files
+                    </label>
+                    <select id="existing-files"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                   focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">-- Select a file --</option>
+                        <!-- Populated via fetch('/viz/files') on load -->
+                    </select>
+                </div>
+
+                <!-- B) Or Upload new file -->
+                <div id="upload-area"
+                     data-filename=""
+                     class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center 
+                            hover:border-indigo-500 transition-colors">
+                    <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-600">
+                        Drop your data file here or
+                        <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                            <span>browse</span>
+                            <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                        </label>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">Supports CSV, Excel files</p>
+                </div>
+            </div>
+
+            <!-- Data Mapping Section (initially hidden) -->
+            <div id="data-mapping" class="bg-white rounded-lg shadow p-6 hidden">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Data Mapping</h2>
+                <div id="mapping-fields" class="space-y-4">
+                    <!-- Visualization Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Visualization Type</label>
+                        <select id="viz-type"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                       focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="line">Line Chart</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="area">Area Chart</option>
+                            <option value="histogram">Histogram</option>
+                            <option value="box">Box Plot</option>
+                            <option value="violin">Violin Plot</option>
+                        </select>
+                    </div>
+                    <!-- X-Axis -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">X-Axis</label>
+                        <select id="x-column"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                       focus:border-indigo-500 focus:ring-indigo-500">
+                            <!-- Dynamically populated columns -->
+                        </select>
+                    </div>
+
+                    <!-- Y-Axis & Aggregation -->
+                    <div id="y-column-wrapper">
+                        <label class="block text-sm font-medium text-gray-700">Y-Axis</label>
+                        <select id="y-column"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                       focus:border-indigo-500 focus:ring-indigo-500">
+                            <!-- Dynamically populated columns -->
+                        </select>
+
+                        <!-- Optional Aggregation Dropdown -->
+                        <label class="block text-sm font-medium text-gray-700 mt-4">Aggregation</label>
+                        <select id="y-aggregation"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                       focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="none">None</option>
+                            <option value="sum">Sum</option>
+                            <option value="avg">Average</option>
+                            <option value="count">Count</option>
+                            <option value="min">Min</option>
+                            <option value="max">Max</option>
+                        </select>
+                    </div>
+
+                    <!-- (Optional) Group By -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Group By</label>
+                        <select id="group-by"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
+                                       focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">-- None --</option>
+                            <!-- Dynamically populated columns -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Settings Section -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Data Settings</h2>
+                
+                <!-- Sort Options -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700" for="sort-column">Sort By</label>
+                    <select id="sort-column" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" aria-label="Select sorting option">
+                        <option value="">-- None --</option>
+                        <option value="x_column">Sort by X-Axis Value</option>
+                        <option value="y_column">Sort by Y-Axis Value</option>
+                        <option value="count">Sort by Count</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Select a column to sort the data. Choose "None" to remove sorting.</p>
+                </div>
+                
+                <!-- Top N -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Top N</label>
+                    <input type="number" id="top-n" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter a number (e.g., 5)">
+                    <p class="text-xs text-gray-500 mt-1">Limit the number of records displayed.</p>
+                </div>
+            </div>
+
+            <!-- Visualization Settings Section -->
+            <div class="bg-white rounded-lg shadow p-6 mt-4">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Visualization Settings</h2>
+                
+                <!-- Save Visualization Button -->
+                <div class="flex justify-between">
+                    <button id="save-visualization-button" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                        <i class="fas fa-save"></i> Save Visualization
+                    </button>
+                    <span id="save-status" class="text-sm text-gray-500"></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Click to save your current visualization.</p>
+            </div>
+        </div>
+
+        <!-- Right Panel: Preview & Code Editor -->
+        <div class="col-span-2">
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-medium text-gray-900">Preview</h2>
+                        <div class="space-x-2">
+                            <button id="update-preview-button"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent 
+                                           rounded-md shadow-sm text-sm font-medium text-white 
+                                           bg-indigo-600 hover:bg-indigo-700">
+                                Update Preview
+                            </button>
+                            <button id="save-visualization-button"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent 
+                                           rounded-md shadow-sm text-sm font-medium text-white 
+                                           bg-green-600 hover:bg-green-700">
+                                Save Visualization
+                            </button>
+                            <!-- Toggle code view -->
+                            <button id="toggle-code"
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 
+                                           rounded-md shadow-sm text-sm font-medium text-gray-700
+                                           bg-white hover:bg-gray-50">
+                                Show/Hide Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <!-- Chart Preview -->
+                    <div id="viz-preview" class="w-full h-96">
+                        <!-- Plotly chart goes here -->
+                    </div>
+
+                    <!-- Code Editor (initially hidden) -->
+                    <div id="code-container" class="mt-4 hidden">
+                        <label for="plotly-json" class="block text-sm font-medium text-gray-700">
+                            Plotly JSON
+                        </label>
+                        <textarea id="plotly-json" rows="10"
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm
+                                         focus:border-indigo-500 focus:ring-indigo-500">
+                        </textarea>
+                        <button id="apply-code" 
+                                class="mt-2 inline-flex items-center px-4 py-2 border border-transparent
+                                       rounded-md shadow-sm text-sm font-medium text-white 
+                                       bg-indigo-600 hover:bg-indigo-700">
+                            Apply Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --------------------------------------
+    // Global Variables
+    // --------------------------------------
+    let activeFile = {
+        name: null,
+        source: null  // 'upload' or 'existing'
+    };
+    let currentPlotlyFig = null;  // store the last Plotly figure
+    let currentFile = null;      // store the current file being visualized
+
+    // Function to update the visualization preview
+    function updatePreview() {
+        const uploadArea = document.getElementById('upload-area');
+        const filename = uploadArea.dataset.filename;
+        const vizType = document.getElementById('viz-type').value;
+        const xColumn = document.getElementById('x-column').value;
+        const yColumn = document.getElementById('y-column').value;
+        const groupBy = document.getElementById('group-by').value;
+        const yAggregation = document.getElementById('y-aggregation').value;
+
+        if (!filename || !vizType || !xColumn) {
+            showError('Please select a file and configure the visualization settings');
+            return;
+        }
+
+        // Clear previous preview
+        document.getElementById('viz-preview').innerHTML = '';
+        
+        // Show loading state
+        document.getElementById('viz-preview').innerHTML = `
+            <div class="flex items-center justify-center h-full">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="ml-2">Generating preview...</span>
+            </div>
+        `;
+
+        // Fetch the preview data from the server
+        fetch('/viz/preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filename: filename,
+                vizType: vizType,
+                xColumn: xColumn,
+                yColumn: yColumn || undefined,
+                groupBy: groupBy || undefined,
+                yAggregation: yAggregation || 'none'
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Failed to generate preview');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Clear loading state
+            document.getElementById('viz-preview').innerHTML = '';
+            
+            // Store the figure data
+            currentPlotlyFig = data.chartData;
+            
+            // Update the preview
+            Plotly.newPlot('viz-preview', data.chartData.data, data.chartData.layout, {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['sendDataToCloud'],
+                displaylogo: false
+            });
+
+            // Update the JSON editor if visible
+            const jsonEditor = document.getElementById('plotly-json');
+            if (jsonEditor) {
+                jsonEditor.value = JSON.stringify(data.chartData, null, 2);
+            }
+        })
+        .catch(error => {
+            console.error('Error generating preview:', error);
+            document.getElementById('viz-preview').innerHTML = `
+                <div class="flex items-center justify-center h-full text-red-600">
+                    <i data-feather="alert-circle" class="w-5 h-5 mr-2"></i>
+                    <span>${error.message}</span>
+                </div>
+            `;
+            feather.replace();
+        });
+    }
+    
+    // --------------------------------------
+    // File Selection Management
+    // --------------------------------------
+    function updateFileSelectionUI(filename, source) {
+        // Update active file tracking
+        activeFile.name = filename;
+        activeFile.source = source;
+
+        // Update UI elements
+        const uploadArea = document.getElementById('upload-area');
+        const fileSelect = document.getElementById('existing-files');
+        const activeFileIndicator = document.getElementById('active-file-indicator');
+
+        // Clear previous selection
+        uploadArea.classList.remove('border-green-500', 'border-gray-300');
+        uploadArea.classList.add(source === 'upload' ? 'border-green-500' : 'border-gray-300');
+        
+        if (source === 'existing') {
+            fileSelect.value = filename;
+            // Add visual indicator for selected file
+            if (!activeFileIndicator) {
+                const indicator = document.createElement('div');
+                indicator.id = 'active-file-indicator';
+                indicator.className = 'mt-2 text-sm text-green-600 flex items-center';
+                indicator.innerHTML = `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Active file: ${filename}
+                `;
+                fileSelect.parentNode.appendChild(indicator);
+            } else {
+                activeFileIndicator.innerHTML = `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Active file: ${filename}
+                `;
+            }
+        } else {
+            fileSelect.value = '';
+            if (activeFileIndicator) {
+                activeFileIndicator.remove();
+            }
+        }
+    }
+
+    // --------------------------------------
+    // On DOMContentLoaded
+    // --------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1) Load existing files from the server
+        fetch('/viz/files')
+            .then(res => res.json())
+            .then(data => {
+                const fileSelect = document.getElementById('existing-files');
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Select an existing file --';
+                fileSelect.appendChild(defaultOption);
+                // Add file options
+                data.files.forEach(filename => {
+                    const option = document.createElement('option');
+                    option.value = filename;
+                    option.textContent = filename;
+                    fileSelect.appendChild(option);
+                });
+            })
+            .catch(err => {
+                console.error('Error fetching file list:', err);
+                showError('Failed to load existing files');
+            });
+    
+        // 2) Handle file selection
+        // Handle existing file selection
+        const fileSelect = document.getElementById('existing-files');
+        if (fileSelect) {
+            fileSelect.addEventListener('change', (e) => {
+                const selectedFile = e.target.value;
+                if (selectedFile) {
+                    updateFileSelectionUI(selectedFile, 'existing');
+                    loadSelectedFile(selectedFile);
+                } else {
+                    updateFileSelectionUI(null, null);
+                }
+            });
+        }
+
+        // Handle file upload via browse button
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                }
+            });
+        }
+    
+        // 3) Code editor toggle
+        const toggleCodeBtn = document.getElementById('toggle-code');
+        if (toggleCodeBtn) {
+            toggleCodeBtn.addEventListener('click', () => {
+                const codeContainer = document.getElementById('code-container');
+                codeContainer.classList.toggle('hidden');
+            });
+        }
+    
+        // 4) Apply JSON code from editor
+        const applyCodeBtn = document.getElementById('apply-code');
+        if (applyCodeBtn) {
+            applyCodeBtn.addEventListener('click', () => {
+                const codeTextarea = document.getElementById('plotly-json');
+                try {
+                    const editedFig = JSON.parse(codeTextarea.value);
+                    currentPlotlyFig = editedFig; // store in memory
+                    document.getElementById('viz-preview').innerHTML = '';
+                    Plotly.newPlot('viz-preview', editedFig.data, editedFig.layout);
+                } catch (e) {
+                    alert('Invalid JSON format. Please correct and try again.\n' + e.message);
+                }
+            });
+        }
+    
+        // 5) Hook up the "Update Preview" button
+        const updatePreviewButton = document.getElementById('update-preview-button');
+        if (updatePreviewButton) {
+            updatePreviewButton.addEventListener('click', updatePreview);
+        }
+    
+        // 6) Hook up the "Save Visualization" button
+        const saveVisualizationButton = document.getElementById('save-visualization-button');
+        if (saveVisualizationButton) {
+            saveVisualizationButton.addEventListener('click', saveVisualization);
+        }
+    });
+    
+    // --------------------------------------
+    // "Select from existing files" logic
+    // --------------------------------------
+    function handleExistingFileSelection() {
+        const fileSelect = document.getElementById('existing-files');
+        const selectedFile = fileSelect.value;
+        if (!selectedFile) return;
+    
+        resetFileUploadUI(); // Clear any drag-drop UI
+    
+        // Mark the UI as "selected"
+        const uploadArea = document.getElementById('upload-area');
+        uploadArea.dataset.filename = selectedFile;
+        uploadArea.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i data-feather="file-text" class="w-5 h-5 text-gray-400 mr-2"></i>
+                    <div>
+                        <span class="text-sm font-medium text-gray-900">${selectedFile}</span>
+                    </div>
+                </div>
+                <button onclick="resetFileUpload()" class="text-gray-400 hover:text-gray-600">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        feather.replace();
+    
+        // Retrieve columns from server
+        fetch(`/viz/data/${encodeURIComponent(selectedFile)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                // Show the data mapping and settings sections
+                document.getElementById('data-mapping').classList.remove('hidden');
+                document.getElementById('viz-settings').classList.remove('hidden');
+                // Populate column selectors
+                populateColumnSelectors(data.columns);
+
+                // Add event listeners for automatic preview updates
+                ['viz-type', 'x-column', 'y-column', 'group-by', 'y-aggregation'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener('change', () => {
+                            // Small delay to prevent too many rapid updates
+                            clearTimeout(window.previewTimeout);
+                            window.previewTimeout = setTimeout(updatePreview, 500);
+                        });
+                    }
+                });
+
+                // Initial preview
+                updatePreview();
+            })
+            .catch(err => {
+                console.error(err);
+                showError('Error loading selected file: ' + err.message);
+            });
+    }
+    
+    // --------------------------------------
+    // Drag and Drop Handling
+    // --------------------------------------
+    function handleDragEnter(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.add('border-indigo-500');
+    }
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('border-indigo-500');
+    }
+    
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('border-indigo-500');
+    
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+    
+    function handleFiles(files) {
+        const file = files[0];
+        if (!file) return;
+
+        // Clear existing file selection
+        updateFileSelectionUI(null, null);
+
+        // Show upload progress UI
+        const uploadArea = document.getElementById('upload-area');
+        if (!uploadArea) {
+            console.error('Upload area not found');
+            return;
+        }
+
+        // Clear any existing data mapping
+        document.getElementById('data-mapping').classList.add('hidden');
+
+        // Basic client-side validation
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+            showError(`File size (${(file.size / (1024*1024)).toFixed(2)}MB) exceeds the maximum limit of 50MB`);
+            return;
+        }
+
+        // Visual feedback
+        uploadArea.classList.add('uploading');
+        uploadArea.innerHTML = `
+            <div class="flex items-center justify-between p-4">
+                <div class="flex-1">
+                    <div class="flex items-center">
+                        <i data-feather="file" class="w-5 h-5 text-gray-400 mr-2"></i>
+                        <span class="text-sm font-medium text-gray-900">${file.name}</span>
+                    </div>
+                    <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                        <div id="upload-progress" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <button onclick="cancelUpload()" class="ml-4 text-gray-400 hover:text-gray-600">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        feather.replace();
+
+        // Prepare FormData
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Upload with progress tracking
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/viz/upload', true);
+        
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                document.getElementById('upload-progress').style.width = percentComplete + '%';
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                handleUploadSuccess(data);
+            } else {
+                try {
+                    const error = JSON.parse(xhr.responseText);
+                    showError(error.error || 'Upload failed');
+                } catch (e) {
+                    showError('Upload failed. Please try again.');
+                }
+            }
+            uploadArea.classList.remove('uploading');
+        };
+
+        xhr.onerror = function() {
+            showError('Network error occurred during upload');
+            uploadArea.classList.remove('uploading');
+        };
+
+        xhr.send(formData);
+    }
+    // --------------------------------------
+    // Reset / Clear UI
+    // --------------------------------------
+    function resetFileUpload() {
+        resetFileUploadUI();
+        document.getElementById('data-mapping').classList.add('hidden');
+        document.getElementById('viz-settings').classList.add('hidden');
+        document.getElementById('viz-preview').innerHTML = '';
+        document.getElementById('plotly-json').value = '';
+        currentPlotlyFig = null;
+    }
+    
+    function resetFileUploadUI() {
+        const uploadArea = document.getElementById('upload-area');
+        uploadArea.dataset.filename = '';
+        uploadArea.innerHTML = `
+            <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+            <p class="text-sm text-gray-600">
+                Drop your data file here or
+                <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                    <span>browse</span>
+                    <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                </label>
+            </p>
+            <p class="text-xs text-gray-500 mt-2">Supports CSV, Excel files</p>
+        `;
+        feather.replace();
+    }
+    
+    // --------------------------------------
+    // Populate Column Selectors
+    // --------------------------------------
+    function populateColumnSelectors(columns) {
+        // X-axis
+        const xSelect = document.getElementById('x-column');
+        // Y-axis
+        const ySelect = document.getElementById('y-column');
+        // Group By
+        const groupBySelect = document.getElementById('group-by');
+    
+        // Clear existing options
+        xSelect.innerHTML = '';
+        ySelect.innerHTML = '';
+        groupBySelect.innerHTML = '<option value="">-- None --</option>';
+    
+        columns.forEach(col => {
+            // X
+            const optX = document.createElement('option');
+            optX.value = col;
+            optX.textContent = col;
+            xSelect.appendChild(optX);
+    
+            // Y
+            const optY = document.createElement('option');
+            optY.value = col;
+            optY.textContent = col;
+            ySelect.appendChild(optY);
+    
+            // Group By
+            const optG = document.createElement('option');
+            optG.value = col;
+            optG.textContent = col;
+            groupBySelect.appendChild(optG);
+        });
+    }
+    
+    // --------------------------------------
+    // Update Preview
+    // --------------------------------------
+    function updatePreview() {
+        const uploadArea = document.getElementById('upload-area');
+        const filename = uploadArea?.dataset.filename;
+        const vizType = document.getElementById('viz-type')?.value;
+        const xColumn = document.getElementById('x-column')?.value;
+        const yColumn = document.getElementById('y-column')?.value;
+        const yAggregation = document.getElementById('y-aggregation')?.value;
+        const groupBy = document.getElementById('group-by')?.value || null;
+        const topN = document.getElementById('top-n')?.value || null;
+        const sortColumn = document.getElementById('sort-column')?.value || null;
+        const sortOrder = document.getElementById('sort-order')?.value || 'asc';
+
+        // Example filter UI (an array of filter objects).
+        const filters = [
+            // Example filter objects can be added here
+            // { column: 'Country', operator: '==', value: 'USA' },
+            // { column: 'Sales', operator: '>', value: '1000' },
+        ];
+
+        // Fetch the preview data from the server
+        fetch('/viz/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename,
+                vizType,
+                xColumn,
+                yColumn,
+                yAggregation,
+                groupBy,
+                topN,
+                sortColumn,
+                sortOrder,
+                filters
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            const fig = data.chartData;
+            currentPlotlyFig = fig;
+
+            // Render the chart
+            const vizPreview = document.getElementById('viz-preview');
+            vizPreview.innerHTML = '';
+            Plotly.newPlot('viz-preview', fig.data, fig.layout);
+
+            // Put raw JSON into code editor
+            const codeTextarea = document.getElementById('plotly-json');
+            codeTextarea.value = JSON.stringify(fig, null, 2);
+        })
+        .catch(error => {
+            console.error('Error rendering preview:', error);
+            alert('Error rendering preview: ' + error.message);
+        });
+    }
+    
+    // --------------------------------------
+    // Save Visualization
+    // --------------------------------------
+    function saveVisualization() {
+        if (!currentPlotlyFig) {
+            alert('No valid visualization configuration found.');
+            return;
+        }
+    
+        const uploadArea = document.getElementById('upload-area');
+        const filename = uploadArea.dataset.filename || 'default_viz';
+        const vizName = document.getElementById('viz-name')?.value.trim() || 'Untitled';
+        const vizDescription = document.getElementById('viz-description')?.value.trim() || '';
+        const userTitle = document.getElementById('viz-title')?.value.trim();
+    
+        // Overwrite layout title if user typed something
+        if (userTitle) {
+            currentPlotlyFig.layout = currentPlotlyFig.layout || {};
+            currentPlotlyFig.layout.title = userTitle;
+        }
+    
+        // Prepare the config
+        const plotConfig = {
+            data: currentPlotlyFig.data,
+            layout: currentPlotlyFig.layout
+        };
+    
+        fetch('/viz/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename,
+                config: plotConfig,
+                vizName,
+                vizDescription
+            }),
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            alert('Visualization saved successfully!');
+        })
+        .catch((error) => {
+            console.error('Error saving visualization:', error);
+            alert('Error saving visualization: ' + error.message);
+        });
+    }
+
+    // Fetch available files from the server
+    function fetchAvailableFiles() {
+        fetch('/api/files') // Adjust the endpoint as necessary
+            .then(response => response.json())
+            .then(data => {
+                const fileSelect = document.getElementById('existing-files');
+                data.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file; // Assuming file is the filename
+                    option.textContent = file; // Display the filename
+                    fileSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching files:', error);
+                alert('Error fetching files: ' + error.message);
+            });
+    }
+
+    // Handle file selection
+    document.getElementById('existing-files').addEventListener('change', function() {
+        const selectedFile = this.value;
+        if (selectedFile) {
+            loadFileData(selectedFile);
+        }
+    });
+
+    // Helper functions for file upload management
+    function showError(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded';
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+            <div class="flex items-center">
+                <i data-feather="alert-circle" class="w-5 h-5 mr-2"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(alertDiv);
+        feather.replace();
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    function handleUploadSuccess(data) {
+        // Update file selection status
+        updateFileSelectionUI(data.filename, 'upload');
+
+        // Update the upload area UI with file details
+        const uploadArea = document.getElementById('upload-area');
+        if (!uploadArea) return;
+
+        uploadArea.dataset.filename = data.filename;
+        uploadArea.innerHTML = `
+            <div class="flex items-center justify-between p-4">
+                <div class="flex-1">
+                    <div class="flex items-center">
+                        <i data-feather="file-text" class="w-5 h-5 text-green-500 mr-2"></i>
+                        <div>
+                            <span class="text-sm font-medium text-gray-900">${data.filename}</span>
+                            <span class="text-xs text-gray-500 block">
+                                ${data.row_count} rows · ${data.file_size_formatted}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-green-600">Active file for visualization</div>
+                </div>
+                <button onclick="resetFileUpload()" class="text-gray-400 hover:text-gray-600">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        feather.replace();
+
+        // Show success message
+        const successDiv = document.createElement('div');
+        successDiv.className = 'fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded';
+        successDiv.innerHTML = `
+            <div class="flex items-center">
+                <i data-feather="check-circle" class="w-5 h-5 mr-2"></i>
+                <span>File uploaded successfully</span>
+            </div>
+        `;
+        document.body.appendChild(successDiv);
+        feather.replace();
+        setTimeout(() => successDiv.remove(), 3000);
+
+        // Show the data mapping section and populate columns
+        document.getElementById('data-mapping').classList.remove('hidden');
+        populateColumnSelectors(data.columns);
+    }
+
+    function resetFileUpload() {
+        // Reset file selection state
+        updateFileSelectionUI(null, null);
+
+        // Reset upload area
+        const uploadArea = document.getElementById('upload-area');
+        if (!uploadArea) return;
+
+        uploadArea.dataset.filename = '';
+        uploadArea.classList.remove('uploading', 'border-green-500');
+        uploadArea.classList.add('border-gray-300');
+        uploadArea.innerHTML = `
+            <i data-feather="upload" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+            <p class="text-sm text-gray-600">
+                Drop your data file here or
+                <label class="text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                    <span>browse</span>
+                    <input type="file" class="hidden" id="file-input" accept=".csv,.xlsx,.xls">
+                </label>
+            </p>
+            <p class="text-xs text-gray-500 mt-2">Supports CSV, Excel files</p>
+        `;
+        feather.replace();
+
+        // Clear all selections and previews
+        document.getElementById('data-mapping').classList.add('hidden');
+        document.getElementById('existing-files').value = '';
+        document.getElementById('viz-preview').innerHTML = '';
+        
+        // Reset all selectors
+        ['viz-type', 'x-column', 'y-column', 'group-by', 'y-aggregation'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.value = '';
+        });
+
+        // Remove any file indicators
+        const indicator = document.getElementById('active-file-indicator');
+        if (indicator) indicator.remove();
+    }
+
+    function cancelUpload() {
+        if (window.currentUpload) {
+            window.currentUpload.abort();
+        }
+        resetFileUpload();
+    }
+
+    // Function to populate column selectors with data from the uploaded file
+    // Function to load data from a selected existing file
+    function loadSelectedFile(filename) {
+        // Show loading state
+        const uploadArea = document.getElementById('upload-area');
+        uploadArea.innerHTML = `
+            <div class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="ml-2">Loading file...</span>
+            </div>
+        `;
+
+        // Fetch file data
+        fetch(`/viz/data/${encodeURIComponent(filename)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load file data');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update UI with file details
+                uploadArea.innerHTML = `
+                    <div class="flex items-center justify-between p-4">
+                        <div class="flex-1">
+                            <div class="flex items-center">
+                                <i data-feather="file-text" class="w-5 h-5 text-green-500 mr-2"></i>
+                                <div>
+                                    <span class="text-sm font-medium text-gray-900">${filename}</span>
+                                    <span class="text-xs text-gray-500 block">
+                                        ${data.data.length} rows
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs text-green-600">Active file for visualization</div>
+                        </div>
+                    </div>
+                `;
+                feather.replace();
+
+                // Show the data mapping section and populate columns
+                document.getElementById('data-mapping').classList.remove('hidden');
+                populateColumnSelectors(data.columns);
+
+                // Store filename for visualization
+                uploadArea.dataset.filename = filename;
+            })
+            .catch(error => {
+                console.error('Error loading file:', error);
+                showError('Failed to load file: ' + error.message);
+                updateFileSelectionUI(null, null);
+            });
+    }
+
+    function populateColumnSelectors(columns) {
+        // Add empty option for optional fields
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '-- Select column --';
+
+        // Clear and populate each selector
+        ['x-column', 'y-column', 'group-by'].forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+
+            select.innerHTML = '';
+            
+            // Add empty option for optional fields (y-column and group-by)
+            if (id !== 'x-column') {
+                select.appendChild(emptyOption.cloneNode(true));
+            }
+
+            // Add column options
+            columns.forEach(column => {
+                const option = document.createElement('option');
+                option.value = column;
+                option.textContent = column;
+                select.appendChild(option);
+            });
+        });
+
+        // Trigger initial preview after populating columns
+        const updatePreviewButton = document.getElementById('update-preview-button');
+        if (updatePreviewButton) {
+            updatePreviewButton.click();
+        }
+    }
+
+    // Initialize the upload area
+    function initializeUploadArea() {
+        const uploadArea = document.getElementById('upload-area');
+        if (!uploadArea) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('border-indigo-500');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('border-indigo-500');
+            }, false);
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }, false);
+    }
+
+    // Function to load data for the selected file
+    function loadFileData(filename) {
+        fetch(`/api/load-file/${filename}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Process the data as needed
+                console.log('File data loaded:', data);
+            })
+            .catch(error => {
+                console.error('Error loading file data:', error);
+                alert('Error loading file data: ' + error.message);
+            });
+    }
+</script>
+{% endblock %}
