@@ -5,13 +5,16 @@ from flask import (
     render_template, 
     request, 
     jsonify, 
-    current_app
+    current_app,
+    abort
 )
 from werkzeug.utils import secure_filename
 import pandas as pd
 import plotly.express as px
 import json
 import os
+from datetime import datetime
+from core.models import db, Visualization
 
 viz_bp = Blueprint("viz", __name__)
 
@@ -186,7 +189,23 @@ def create():
         "visualizations/create.html",
         template_type=template_type,
         filename=filename,
-        plotly_config=current_app.config.get("PLOTLY_CONFIG", {})
+        plotly_config=current_app.config.get("PLOTLY_CONFIG", {}),
+        visualization=None  # No existing visualization for create
+    )
+
+@viz_bp.route("/<int:viz_id>/edit", methods=["GET"])
+def edit(viz_id):
+    """
+    Display visualization edit interface.
+    """
+    visualization = Visualization.query.get_or_404(viz_id)
+    
+    return render_template(
+        "visualizations/create.html",  # We'll use the same template but with edit mode
+        template_type=visualization.chart_type,
+        filename=visualization.source_file,
+        plotly_config=current_app.config.get("PLOTLY_CONFIG", {}),
+        visualization=visualization.to_dict()
     )
 
 
@@ -325,7 +344,7 @@ def preview():
         return jsonify({"error": f"Failed to generate preview: {str(e)}"}), 500
 
 
-@viz_bp.route('/viz/save', methods=['POST'])
+@viz_bp.route('/save', methods=['POST'])
 def save_viz():
     """
     Saves a visualization to the database with metadata and Plotly configuration.
@@ -383,13 +402,13 @@ def save_viz():
         return jsonify({'error': f'Error saving visualization: {str(e)}'}), 500
 
 
-@viz_bp.route('/viz/<int:viz_id>', methods=['GET'])
+@viz_bp.route('/<int:viz_id>', methods=['GET'])
 def get_visualization(viz_id):
     """Get a specific visualization by ID"""
     visualization = Visualization.query.get_or_404(viz_id)
     return jsonify(visualization.to_dict())
 
-@viz_bp.route('/viz/<int:viz_id>', methods=['DELETE'])
+@viz_bp.route('/<int:viz_id>', methods=['DELETE'])
 def delete_visualization(viz_id):
     """Delete a specific visualization"""
     visualization = Visualization.query.get_or_404(viz_id)
@@ -401,7 +420,7 @@ def delete_visualization(viz_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@viz_bp.route('/viz/list', methods=['GET'])
+@viz_bp.route('/list', methods=['GET'])
 def list_visualizations():
     """Get all saved visualizations"""
     visualizations = Visualization.query.order_by(Visualization.updated_at.desc()).all()

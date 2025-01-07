@@ -20,6 +20,9 @@ class VisualizationManager {
     async loadVisualizations() {
         try {
             const response = await fetch('/viz/list');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
             this.renderVisualizations(data.visualizations);
         } catch (error) {
@@ -127,14 +130,15 @@ class VisualizationManager {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to delete visualization');
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete visualization');
             }
 
             // Reload the visualizations
             this.loadVisualizations();
         } catch (error) {
             console.error('Error deleting visualization:', error);
-            this.showError('Failed to delete visualization');
+            this.showError(error.message);
         }
     }
 
@@ -153,17 +157,31 @@ class VisualizationManager {
                     title: formData.get('title'),
                     description: formData.get('description'),
                     config: window.currentVisualizationConfig,
-                    chart_type: window.currentChartType || 'custom'
+                    chart_type: window.currentChartType || 'custom',
+                    id: formData.get('viz_id') || null  // For updates
                 })
             });
 
             const data = await response.json();
 
-            if (response.ok) {
-                this.closeSaveModal();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to save visualization');
+            }
+
+            // Dispatch event for successful save
+            document.dispatchEvent(new CustomEvent('visualizationSaved', {
+                detail: data.visualization
+            }));
+
+            this.closeSaveModal();
+            
+            // If we're in the editor, redirect to home
+            if (window.location.pathname.includes('/edit') || 
+                window.location.pathname.includes('/create')) {
                 window.location.href = '/';
             } else {
-                throw new Error(data.error || 'Failed to save visualization');
+                // Otherwise just refresh the list
+                this.loadVisualizations();
             }
         } catch (error) {
             console.error('Error saving visualization:', error);
