@@ -62,33 +62,67 @@ def list_files():
 @viz_bp.route("/upload", methods=["POST"])
 def upload_data():
     """
-    Handles file uploads and places them in ../data/raw/uploaded.
+    Handles file uploads with improved validation, error handling, and storage management.
     Returns JSON about the file (columns, row count, etc.) so the front-end
     can populate the UI.
     """
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
+    MAX_STORAGE_SPACE = 500 * 1024 * 1024  # 500MB total storage limit
+
     if "file" not in request.files:
-        return jsonify({"error": "No file part in the request"}), 400
+        return jsonify({"error": "No file was provided in the request"}), 400
 
     file = request.files["file"]
     if not file or file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
+    # Size validation
+    if request.content_length > MAX_FILE_SIZE:
+        return jsonify({"error": f"File size exceeds the maximum limit of {MAX_FILE_SIZE // (1024*1024)}MB"}), 400
+
     if not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type"}), 400
+        return jsonify({
+            "error": "Invalid file type. Supported formats are: " + 
+            ", ".join(current_app.config.get("ALLOWED_EXTENSIONS", ["csv", "xlsx", "xls"]))
+        }), 400
 
     filename = secure_filename(file.filename)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filepath = os.path.join(UPLOAD_DIR, filename)
 
+    # Check total storage usage
+    total_size = sum(os.path.getsize(os.path.join(UPLOAD_DIR, f)) 
+                    for f in os.listdir(UPLOAD_DIR) 
+                    if os.path.isfile(os.path.join(UPLOAD_DIR, f)))
+    if total_size + request.content_length > MAX_STORAGE_SPACE:
+        return jsonify({"error": "Storage space limit exceeded. Please delete some files first."}), 400
+
+    # Handle duplicate filenames
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    while os.path.exists(filepath):
+        filename = f"{base}_{counter}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        counter += 1
+
     try:
         # Save the uploaded file
         file.save(filepath)
 
-        # Load into a DataFrame to gather metadata
+        # Load into a DataFrame to gather metadata and validate content
         df = load_dataframe(filepath, filename)
+        
+        # Basic data validation
+        if len(df.columns) == 0:
+            raise ValueError("File contains no columns")
+        if len(df) == 0:
+            raise ValueError("File contains no data rows")
+
+        # Generate metadata
         columns = df.columns.tolist()
         dtypes = df.dtypes.astype(str).to_dict()
         preview_data = df.head(5).to_dict(orient="records")
+        file_size = os.path.getsize(filepath)
 
         return jsonify({
             "message": "File uploaded successfully",
@@ -96,13 +130,22 @@ def upload_data():
             "columns": columns,
             "dtypes": dtypes,
             "row_count": len(df),
-            "preview": preview_data
+            "preview": preview_data,
+            "file_size": file_size,
+            "file_size_formatted": f"{file_size / (1024*1024):.2f}MB"
         })
     except Exception as e:
         # Clean up partially saved file if something goes wrong
         if os.path.exists(filepath):
             os.remove(filepath)
-        return jsonify({"error": f"Error processing file: {str(e)}"}), 400
+        
+        error_message = str(e)
+        if "memory" in error_message.lower():
+            error_message = "File is too large to process. Please try a smaller file."
+        elif "decode" in error_message.lower():
+            error_message = "Unable to read file. Please ensure it's a valid CSV/Excel file with proper encoding."
+            
+        return jsonify({"error": f"Error processing file: {error_message}"}), 400
 
 
 @viz_bp.route("/data/<path:filename>", methods=["GET"])
