@@ -212,10 +212,6 @@
         </div>
     </div>
 </div>
-
-{# Include the save modal #}
-{% include 'visualizations/save_modal.html' %}
-
 {% endblock %}
 
 {% block scripts %}
@@ -229,39 +225,6 @@
     };
     let currentPlotlyFig = null;  // store the last Plotly figure
     let currentFile = null;      // store the current file being visualized
-
-    // Initialize with existing visualization if we're editing
-    {% if visualization %}
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set current configuration
-        currentPlotlyFig = {{ visualization.config | safe }};
-        
-        // Update the preview with saved configuration
-        Plotly.newPlot('viz-preview', currentPlotlyFig.data, currentPlotlyFig.layout, {
-            responsive: true,
-            displayModeBar: true,
-            modeBarButtonsToRemove: ['sendDataToCloud'],
-            displaylogo: false
-        });
-
-        // Set the active file
-        const filename = "{{ visualization.source_file }}";
-        if (filename) {
-            activeFile.name = filename;
-            activeFile.source = 'existing';
-            document.getElementById('upload-area').dataset.filename = filename;
-        }
-
-        // Set visualization type
-        const vizTypeSelect = document.getElementById('viz-type');
-        if (vizTypeSelect) {
-            vizTypeSelect.value = "{{ visualization.chart_type }}";
-        }
-
-        // Load the data columns for the saved file
-        loadDataColumns(filename);
-    });
-    {% endif %}
 
     // Function to update the visualization preview
     function updatePreview() {
@@ -655,40 +618,7 @@
         };
 
         xhr.send(formData);
-                throw new Error(data.error);
-            }
-            // Store the uploaded filename
-            const uploadArea = document.getElementById('upload-area');
-            uploadArea.dataset.filename = data.filename;
-            uploadArea.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <i data-feather="file-text" class="w-5 h-5 text-gray-400 mr-2"></i>
-                        <div>
-                            <span class="text-sm font-medium text-gray-900">${data.filename}</span>
-                            <span class="text-xs text-gray-500 block">${data.row_count} rows</span>
-                        </div>
-                    </div>
-                    <button onclick="resetFileUpload()" class="text-gray-400 hover:text-gray-600">
-                        <i data-feather="x" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            `;
-            feather.replace();
-    
-            // Show the sections
-            document.getElementById('data-mapping').classList.remove('hidden');
-            document.getElementById('viz-settings').classList.remove('hidden');
-    
-            // Populate column selectors
-            populateColumnSelectors(data.columns);
-        })
-        .catch(error => {
-            console.error('Error uploading file:', error);
-            alert('Error uploading file: ' + error.message);
-        });
     }
-    
     // --------------------------------------
     // Reset / Clear UI
     // --------------------------------------
@@ -829,30 +759,42 @@
     
         const uploadArea = document.getElementById('upload-area');
         const filename = uploadArea.dataset.filename || 'default_viz';
-        
-        // Open the save modal and populate it with existing data if editing
-        const modal = document.getElementById('saveVisualizationModal');
-        const form = document.getElementById('saveVisualizationForm');
-        const titleInput = document.getElementById('title');
-        const descriptionInput = document.getElementById('description');
-        const vizIdInput = document.getElementById('viz_id');
-        
-        // If we're editing, populate the form with existing data
-        {% if visualization %}
-            titleInput.value = "{{ visualization.name }}";
-            descriptionInput.value = "{{ visualization.description }}";
-            vizIdInput.value = "{{ visualization.id }}";
-        {% endif %}
-        
-        // Store the current visualization config for use when the form is submitted
-        window.currentVisualizationConfig = currentPlotlyFig;
-        window.currentChartType = document.getElementById('viz-type').value;
-        
-        // Show the modal
-        modal.classList.remove('hidden');
-        
-        // Focus on the title input
-        titleInput.focus();
+        const vizName = document.getElementById('viz-name')?.value.trim() || 'Untitled';
+        const vizDescription = document.getElementById('viz-description')?.value.trim() || '';
+        const userTitle = document.getElementById('viz-title')?.value.trim();
+    
+        // Overwrite layout title if user typed something
+        if (userTitle) {
+            currentPlotlyFig.layout = currentPlotlyFig.layout || {};
+            currentPlotlyFig.layout.title = userTitle;
+        }
+    
+        // Prepare the config
+        const plotConfig = {
+            data: currentPlotlyFig.data,
+            layout: currentPlotlyFig.layout
+        };
+    
+        fetch('/viz/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename,
+                config: plotConfig,
+                vizName,
+                vizDescription
+            }),
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            alert('Visualization saved successfully!');
+        })
+        .catch((error) => {
+            console.error('Error saving visualization:', error);
+            alert('Error saving visualization: ' + error.message);
         });
     }
 
@@ -1117,29 +1059,9 @@
             handleFiles(files);
         }, false);
     }
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            // Handle successful upload
-            console.log('File uploaded successfully:', data);
-        })
-        .catch(error => {
-            console.error('Error uploading file:', error);
-            alert('Error uploading file: ' + error.message);
-        })
-        .finally(() => {
-            if (uploadArea) {
-                uploadArea.classList.remove('uploading'); // Remove visual feedback
-            }
-        });
-    }
+        // This section of code was incorrectly placed and is not applicable in this context.
+        // It appears to be a part of a Promise chain for handling file uploads, but it is not properly integrated into the existing code structure.
+        // To fix this section, it needs to be properly integrated into the existing code structure, likely within a function that handles file uploads.
 
     // Function to load data for the selected file
     function loadFileData(filename) {
