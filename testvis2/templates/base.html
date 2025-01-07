@@ -1,0 +1,111 @@
+{# views/base.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VisEcosystem{% endblock %}</title>
+    
+    {# Essential Libraries #}
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    {# Additional head content #}
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    {# Navigation #}
+    <nav class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                {# Left side: Logo and primary nav #}
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="flex items-center space-x-2">
+                            <i data-feather="bar-chart-2" class="h-8 w-8 text-indigo-600"></i>
+                            <span class="text-xl font-semibold text-gray-900">VisEcosystem</span>
+                        </a>
+                    </div>
+                </div>
+
+                {# Center: Quick create button #}
+                <div class="flex items-center">
+                    <a href="/viz/create" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                        New Visualization
+                    </a>
+                </div>
+
+                {# Right side: Templates and Settings #}
+                <div class="flex items-center space-x-4">
+                    <a href="/viz/templates" class="text-gray-600 hover:text-gray-900">
+                        <i data-feather="layout" class="w-5 h-5"></i>
+                    </a>
+                    <div class="relative" x-data="{ open: false }">
+                        <button class="text-gray-600 hover:text-gray-900">
+                            <i data-feather="settings" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {# Main Content #}
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {# Flash Messages #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-md {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {# Page Content #}
+        {% block content %}{% endblock %}
+    </main>
+
+    {# Scripts #}
+    <script>
+        // Initialize Feather Icons
+        feather.replace();
+
+        // Handle file drag and drop
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.target.classList.add('border-indigo-500');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.target.classList.remove('border-indigo-500');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.target.classList.remove('border-indigo-500');
+            
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                handleFiles(files);
+            }
+        }
+
+        // Global error handling
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error: ', msg, '\nURL: ', url, '\nLine: ', lineNo);
+            return false;
+        };
+    </script>
+    
+    {# Additional page-specific scripts #}
+    {% block scripts %}{% endblock %}
+</body>
+</html>
