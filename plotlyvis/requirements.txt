@@ -1,0 +1,5 @@
+Flask==2.3.3
+plotly==5.18.0
+pandas==2.1.0
+numpy==1.24.3
+python-json-logger==2.0.7

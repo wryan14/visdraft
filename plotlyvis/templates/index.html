@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlotlyVis Editor</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search configurations...">
+            </div>
+            <div class="save-controls">
+                <input type="text" id="configName" placeholder="Configuration name">
+                <button onclick="saveConfig()">Save</button>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>Saved Configurations</h2>
+                <div id="configList" class="config-list"></div>
+            </div>
+            
+            <div class="editor-section">
+                <div id="editor" class="code-editor"></div>
+                <div class="editor-controls">
+                    <button onclick="updatePreview()">Update Preview</button>
+                </div>
+            </div>
+            
+            <div class="preview-section">
+                <div id="preview" class="plot-preview"></div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
