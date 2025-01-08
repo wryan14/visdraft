@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Library Data Visualization Tool{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">Welcome to Library Viz</h1>
+            <p class="lead">Create beautiful visualizations for your library data</p>
+        </div>
+        <div class="col-auto">
+            <a href="/viz/new" class="btn btn-primary">Create New Visualization</a>
+        </div>
+    </div>
+
+    <!-- Quick Start Templates -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h4">Quick Start Templates</h2>
+            <div class="row">
+                {% for category, templates in templates_by_category.items() %}
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">{{ category }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for template in templates[:3] %}
+                                <li class="mb-2">
+                                    <a href="/viz/new?template={{ template.id }}" class="text-decoration-none">
+                                        {{ template.name }}
+                                        {% if template.difficulty_level %}
+                                        <span class="badge bg-{{ 'success' if template.difficulty_level == 'Beginner' else 'warning' if template.difficulty_level == 'Intermediate' else 'danger' }}">
+                                            {{ template.difficulty_level }}
+                                        </span>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% if templates|length > 3 %}
+                            <a href="/templates?category={{ category }}" class="btn btn-sm btn-outline-primary">View All</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Visualizations -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h4">Recent Visualizations</h2>
+            <div class="row">
+                {% for viz in recent_vizs %}
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ viz.name }}</h5>
+                            <p class="card-text small">{{ viz.description[:100] }}...</p>
+                            <div class="visualization-preview" id="viz-preview-{{ viz.id }}"></div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100">
+                                <a href="/viz/{{ viz.id }}" class="btn btn-outline-primary">View</a>
+                                <a href="/viz/{{ viz.id }}/edit" class="btn btn-outline-secondary">Edit</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Datasets -->
+    <div class="row">
+        <div class="col">
+            <h2 class="h4">Recent Datasets</h2>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Date Range</th>
+                            <th>Last Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dataset in recent_datasets %}
+                        <tr>
+                            <td>{{ dataset.name }}</td>
+                            <td>{{ dataset.category }}</td>
+                            <td>{{ dataset.date_range }}</td>
+                            <td>{{ dataset.last_used|datetime }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="/data/{{ dataset.id }}" class="btn btn-sm btn-outline-primary">View</a>
+                                    <a href="/viz/new?dataset={{ dataset.id }}" class="btn btn-sm btn-outline-success">Visualize</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize visualization previews
+    {% for viz in recent_vizs %}
+    (function(vizId) {
+        const config = {{ viz.config|tojson }};
+        // Create a simplified version for preview
+        const previewConfig = {
+            data: config.data.map(trace => ({
+                ...trace,
+                x: trace.x?.slice(0, 10),
+                y: trace.y?.slice(0, 10)
+            })),
+            layout: {
+                ...config.layout,
+                height: 200,
+                margin: { t: 30, r: 30, b: 30, l: 30 },
+                showlegend: false
+            }
+        };
+        Plotly.newPlot(`viz-preview-${vizId}`, previewConfig.data, previewConfig.layout, {
+            displayModeBar: false,
+            responsive: true
+        });
+    })({{ viz.id }});
+    {% endfor %}
+</script>
+{% endblock %}
