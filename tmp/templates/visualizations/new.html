@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Visualization - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Wizard Progress -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="wizard-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wizard Form -->
+    <form id="visualization-wizard" class="needs-validation" novalidate>
+        <!-- Step 1: Choose Template or Start Fresh -->
+        <div class="wizard-step" data-step="1">
+            <h2 class="h4 mb-4">Choose Your Starting Point</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Start from Template</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" id="template-category">
+                                    <option value="">Select a category...</option>
+                                    {% for category in template_categories %}
+                                    <option value="{{ category }}">{{ category }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Template</label>
+                                <select class="form-select" id="template-select" disabled>
+                                    <option value="">Select a template...</option>
+                                </select>
+                            </div>
+                            <div id="template-preview" class="mt-3">
+                                <!-- Template preview will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Start Fresh</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Chart Type</label>
+                                <select class="form-select" id="chart-type">
+                                    <option value="">Select a chart type...</option>
+                                    <option value="line">Line Chart</option>
+                                    <option value="bar">Bar Chart</option>
+                                    <option value="pie">Pie Chart</option>
+                                    <option value="scatter">Scatter Plot</option>
+                                    <option value="histogram">Histogram</option>
+                                </select>
+                            </div>
+                            <div id="chart-type-help" class="mt-3">
+                                <!-- Chart type help will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Select Data -->
+        <div class="wizard-step" data-step="2" style="display: none;">
+            <h2 class="h4 mb-4">Select Your Data</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Choose Dataset</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Existing Datasets</label>
+                                <select class="form-select" id="dataset-select">
+                                    <option value="">Select a dataset...</option>
+                                    {% for dataset in datasets %}
+                                    <option value="{{ dataset.id }}">{{ dataset.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-muted">or</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Upload New Dataset</label>
+                                <input type="file" class="form-control" id="dataset-upload" accept=".csv,.xlsx">
+                                <div class="form-text">Supported formats: CSV, Excel</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Data Preview</h5>
+                            <div id="data-preview" class="table-responsive">
+                                <!-- Data preview will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Configure Visualization -->
+        <div class="wizard-step" data-step="3" style="display: none;">
+            <h2 class="h4 mb-4">Configure Your Visualization</h2>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Basic Settings</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Title</label>
+                                <input type="text" class="form-control" id="viz-title" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="viz-description" rows="3"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" id="viz-category">
+                                    <option value="circulation">Circulation</option>
+                                    <option value="collections">Collections</option>
+                                    <option value="programs">Programs</option>
+                                    <option value="usage">Usage Statistics</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Chart Configuration</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">X-Axis Data</label>
+                                        <select class="form-select" id="x-axis-select"></select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Y-Axis Data</label>
+                                        <select class="form-select" id="y-axis-select"></select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Color Scheme</label>
+                                        <select class="form-select" id="color-scheme">
+                                            <option value="default">Default</option>
+                                            <option value="pastel">Pastel</option>
+                                            <option value="warm">Warm</option>
+                                            <option value="cool">Cool</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Legend Position</label>
+                                        <select class="form-select" id="legend-position">
+                                            <option value="right">Right</option>
+                                            <option value="bottom">Bottom</option>
+                                            <option value="none">None</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Preview</h5>
+                            <div id="visualization-preview" style="height: 400px;">
+                                <!-- Live visualization preview will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="row mt-4">
+            <div class="col">
+                <button type="button" class="btn btn-secondary" id="prev-step" style="display: none;">Previous</button>
+                <button type="button" class="btn btn-primary" id="next-step">Next</button>
+                <button type="submit" class="btn btn-success" id="save-viz" style="display: none;">Save Visualization</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentStep = 1;
+    const totalSteps = 3;
+    
+    // Update progress bar
+    function updateProgress() {
+        const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+        document.getElementById('wizard-progress').style.width = `${progress}%`;
+    }
+
+    // Show/hide steps
+    function showStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+        document.querySelector(`[data-step="${step}"]`).style.display = 'block';
+        
+        // Update buttons
+        const prevBtn = document.getElementById('prev-step');
+        const nextBtn = document.getElementById('next-step');
+        const saveBtn = document.getElementById('save-viz');
+        
+        prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
+        nextBtn.style.display = step < totalSteps ? 'inline-block' : 'none';
+        saveBtn.style.display = step === totalSteps ? 'inline-block' : 'none';
+        
+        updateProgress();
+    }
+
+    // Handle template selection
+    document.getElementById('template-category').addEventListener('change', function() {
+        const templateSelect = document.getElementById('template-select');
+        if (this.value) {
+            templateSelect.disabled = false;
+            // Load templates for selected category
+            fetch(`/api/templates?category=${this.value}`)
+                .then(response => response.json())
+                .then(data => {
+                    templateSelect.innerHTML = '<option value="">Select a template...</option>' +
+                        data.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                });
+        } else {
+            templateSelect.disabled = true;
+            templateSelect.innerHTML = '<option value="">Select a template...</option>';
+        }
+    });
+
+    // Handle dataset selection
+    document.getElementById('dataset-select').addEventListener('change', function() {
+        if (this.value) {
+            fetch(`/api/data/preview/${this.value}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateDataPreview(data);
+                    updateAxisSelectors(data.columns);
+                });
+        }
+    });
+
+    // Handle file upload
+    document.getElementById('dataset-upload').addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/api/data/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateDataPreview(data);
+                updateAxisSelectors(data.columns);
+            });
+        }
+    });
+
+    // Update visualization preview
+    function updateVisualizationPreview() {
+        const config = {
+            data: [{
+                x: document.getElementById('x-axis-select').value,
+                y: document.getElementById('y-axis-select').value,
+                type: document.getElementById('chart-type').value
+            }],
+            layout: {
+                title: document.getElementById('viz-title').value,
+                showlegend: document.getElementById('legend-position').value !== 'none'
+            }
+        };
+        
+        Plotly.newPlot('visualization-preview', config.data, config.layout);
+    }
+
+    // Navigation event listeners
+    document.getElementById('prev-step').addEventListener('click', () => {
+        if (currentStep > 1) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    });
+
+    document.getElementById('next-step').addEventListener('click', () => {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    });
+
+    // Form submission
+    document.getElementById('visualization-wizard').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            title: document.getElementById('viz-title').value,
+            description: document.getElementById('viz-description').value,
+            category: document.getElementById('viz-category').value,
+            chart_type: document.getElementById('chart-type').value,
+            config: {
+                data: [{
+                    x: document.getElementById('x-axis-select').value,
+                    y: document.getElementById('y-axis-select').value,
+                    type: document.getElementById('chart-type').value
+                }],
+                layout: {
+                    title: document.getElementById('viz-title').value,
+                    showlegend: document.getElementById('legend-position').value !== 'none'
+                }
+            }
+        };
+        
+        fetch('/api/viz/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                window.location.href = `/viz/${data.id}`;
+            }
+        });
+    });
+
+    // Initialize first step
+    showStep(1);
+</script>
+{% endblock %}

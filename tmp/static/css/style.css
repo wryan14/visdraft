@@ -1,0 +1,105 @@
+/* Main styling */
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.help-icon {
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.template-card {
+    transition: transform 0.2s;
+}
+
+.template-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.visualization-preview {
+    min-height: 300px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+.sidebar {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    height: calc(100vh - 56px);
+    position: fixed;
+    left: 0;
+    top: 56px;
+    width: 250px;
+    overflow-y: auto;
+}
+
+.main-content {
+    margin-left: 250px;
+    padding: 2rem;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        display: none;
+    }
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+.tooltip-inner {
+    max-width: 300px;
+}
+
+/* Dashboard specific styles */
+.stat-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.stat-card p {
+    margin: 0.5rem 0 0;
+    color: #6c757d;
+}
+
+/* Visualization wizard styles */
+.wizard-step {
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.progress {
+    height: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Template gallery styles */
+.template-preview {
+    height: 200px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Help page styles */
+.nav-pills .nav-link {
+    margin-bottom: 0.5rem;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #0d6efd;
+}

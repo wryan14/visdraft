@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Help & Documentation - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left sidebar with navigation -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <nav class="nav flex-column nav-pills">
+                        <a class="nav-link active" href="#getting-started">Getting Started</a>
+                        <a class="nav-link" href="#templates">Using Templates</a>
+                        <a class="nav-link" href="#data-import">Data Import</a>
+                        <a class="nav-link" href="#visualization-types">Visualization Types</a>
+                        <a class="nav-link" href="#customization">Customization</a>
+                        <a class="nav-link" href="#export-share">Export & Share</a>
+                        <a class="nav-link" href="#faq">FAQ</a>
+                        <a class="nav-link" href="#examples">Example Gallery</a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content area -->
+        <div class="col-md-9">
+            <!-- Getting Started -->
+            <section id="getting-started" class="mb-5">
+                <h2>Getting Started</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Quick Start Guide</h5>
+                        <p>Follow these simple steps to create your first visualization:</p>
+                        <ol>
+                            <li>Click "Create New Visualization" on the dashboard</li>
+                            <li>Choose a template or start fresh</li>
+                            <li>Upload or select your data</li>
+                            <li>Configure your visualization</li>
+                            <li>Save and share!</li>
+                        </ol>
+                        <a href="/viz/new" class="btn btn-primary">Create Your First Visualization</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates -->
+            <section id="templates" class="mb-5">
+                <h2>Using Templates</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Available Templates</h5>
+                        <div class="row">
+                            {% for category, templates in templates_by_category.items() %}
+                            <div class="col-md-6 mb-3">
+                                <h6>{{ category }}</h6>
+                                <ul class="list-unstyled">
+                                    {% for template in templates %}
+                                    <li>
+                                        <a href="/templates/{{ template.id }}" class="text-decoration-none">
+                                            {{ template.name }}
+                                            <small class="text-muted">({{ template.difficulty_level }})</small>
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Import -->
+            <section id="data-import" class="mb-5">
+                <h2>Data Import</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5>Supported Formats</h5>
+                        <ul>
+                            <li>CSV files</li>
+                            <li>Excel spreadsheets (.xlsx)</li>
+                            <li>Integrated Library System exports</li>
+                        </ul>
+                        
+                        <h5>Tips for Data Preparation</h5>
+                        <ul>
+                            <li>Ensure your data is clean and properly formatted</li>
+                            <li>Use consistent date formats</li>
+                            <li>Remove unnecessary columns</li>
+                            <li>Check for missing values</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Visualization Types -->
+            <section id="visualization-types" class="mb-5">
+                <h2>Visualization Types</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Line Charts</h5>
+                                <p>Best for showing trends over time:</p>
+                                <ul>
+                                    <li>Circulation statistics</li>
+                                    <li>Program attendance trends</li>
+                                    <li>Resource usage patterns</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Bar Charts</h5>
+                                <p>Best for comparing categories:</p>
+                                <ul>
+                                    <li>Collection usage by subject</li>
+                                    <li>Program attendance by age group</li>
+                                    <li>Resource usage by type</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FAQ -->
+            <section id="faq" class="mb-5">
+                <h2>Frequently Asked Questions</h2>
+                <div class="accordion" id="faqAccordion">
+                    {% for faq in faqs %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ loop.index }}">
+                                {{ faq.question }}
+                            </button>
+                        </h2>
+                        <div id="faq{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                {{ faq.answer }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Example Gallery -->
+            <section id="examples" class="mb-5">
+                <h2>Example Gallery</h2>
+                <div class="row">
+                    {% for example in examples %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ example.name }}</h5>
+                                <p class="card-text">{{ example.description }}</p>
+                                <div class="visualization-preview" id="example-{{ example.id }}"></div>
+                                <a href="/viz/{{ example.id }}" class="btn btn-outline-primary mt-2">View Full Example</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize example visualizations
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for example in examples %}
+        Plotly.newPlot('example-{{ example.id }}', 
+            {{ example.config.data|tojson }},
+            {{ example.config.layout|tojson|safe }},
+            { staticPlot: true }
+        );
+        {% endfor %}
+    });
+
+    // Smooth scroll for navigation
+    document.querySelectorAll('nav a').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = document.querySelector(this.getAttribute('href'));
+            section.scrollIntoView({ behavior: 'smooth' });
+            
+            // Update active nav link
+            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Highlight active section on scroll
+    window.addEventListener('scroll', function() {
+        const sections = document.querySelectorAll('section');
+        let currentSection = '';
+        
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            if (pageYOffset >= sectionTop - 60) {
+                currentSection = '#' + section.getAttribute('id');
+            }
+        });
+        
+        document.querySelectorAll('nav a').forEach(a => {
+            a.classList.remove('active');
+            if (a.getAttribute('href') === currentSection) {
+                a.classList.add('active');
+            }
+        });
+    });
+</script>
+{% endblock %}
