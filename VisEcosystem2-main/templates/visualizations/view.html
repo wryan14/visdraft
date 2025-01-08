@@ -1,0 +1,463 @@
+{# visualizations/view.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">{{ visualization.name }}</h1>
+            {% if visualization.category %}
+            <span class="badge bg-secondary">{{ visualization.category }}</span>
+            {% endif %}
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="toggleEditMode()">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button class="btn btn-outline-secondary" onclick="shareVisualization()">
+                <i class="bi bi-share"></i> Share
+            </button>
+            <button class="btn btn-outline-success" onclick="exportVisualization()">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <!-- Add this to the button group in view.html -->
+            <button class="btn btn-outline-danger" 
+            onclick='confirmDelete("viz", {{ visualization.id }}, {{ visualization.name|tojson }}, "/")'>
+        <i class="bi bi-trash"></i> Delete
+    </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Visualization Display Mode -->
+        <div class="col-12" id="display-mode">
+            <div class="card">
+                <div class="card-body">
+                    <div id="visualization-container" style="height: 600px;">
+                        <!-- Plotly visualization will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Mode (hidden by default) -->
+        <div class="col-md-6" id="edit-mode" style="display: none;">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#basic-config" role="tab">
+                                    Basic Configuration
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#advanced-config" role="tab">
+                                    Advanced Settings
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatCode()">
+                                <i class="bi bi-code-square"></i> Format
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateVisualization()">
+                                <i class="bi bi-play-fill"></i> Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="basic-config" role="tabpanel">
+                            <div id="config-editor" style="height: 500px;"></div>
+                        </div>
+                        <div class="tab-pane fade" id="advanced-config" role="tabpanel">
+                            <div class="p-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Data Transformations</label>
+                                    <select class="form-select" id="transform-type" onchange="addTransform()">
+                                        <option value="">Select a transformation...</option>
+                                        <option value="sort">Sort Data</option>
+                                        <option value="aggregate">Aggregate Data</option>
+                                        <option value="filter">Filter Data</option>
+                                        <option value="groupby">Group By</option>
+                                    </select>
+                                </div>
+                                <div id="transform-settings"></div>
+                                <div class="mb-3">
+                                    <label class="form-label">Interactivity</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enable-zoom">
+                                        <label class="form-check-label" for="enable-zoom">
+                                            Enable Zoom
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enable-pan">
+                                        <label class="form-check-label" for="enable-pan">
+                                            Enable Pan
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Hover Modes</label>
+                                    <select class="form-select" id="hover-mode" onchange="updateHoverMode()">
+                                        <option value="closest">Closest Point</option>
+                                        <option value="x">Vertical Line</option>
+                                        <option value="y">Horizontal Line</option>
+                                        <option value="x unified">Unified X</option>
+                                        <option value="y unified">Unified Y</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <form id="edit-form">
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" id="viz-title" 
+                                   value="{{ visualization.name }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="viz-description" 
+                                    rows="3">{{ visualization.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" id="viz-category">
+                                <option value="circulation" {% if visualization.category == 'circulation' %}selected{% endif %}>Circulation</option>
+                                <option value="collections" {% if visualization.category == 'collections' %}selected{% endif %}>Collections</option>
+                                <option value="programs" {% if visualization.category == 'programs' %}selected{% endif %}>Programs</option>
+                                <option value="usage" {% if visualization.category == 'usage' %}selected{% endif %}>Usage Statistics</option>
+                                <option value="other" {% if visualization.category == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="toggleEditMode()">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview (in edit mode) -->
+        <div class="col-md-6" id="preview-pane" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="preview-container" style="height: 400px;">
+                        <!-- Preview will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Store the original configuration
+const originalConfig = {{ visualization.config|tojson|safe }};
+let editor;
+
+// Initialize Monaco Editor
+require(['vs/editor/editor.main'], function() {
+    // Strip data from config for editing
+    const editConfig = stripDataFromConfig(originalConfig);
+    
+    editor = monaco.editor.create(document.getElementById('config-editor'), {
+        value: JSON.stringify(editConfig, null, 2),
+        language: 'json',
+        theme: 'vs',
+        minimap: { enabled: false },
+        automaticLayout: true,
+        formatOnPaste: true,
+        formatOnType: true
+    });
+});
+
+// Initialize visualization
+document.addEventListener('DOMContentLoaded', function() {
+    // Create initial visualization
+    Plotly.newPlot('visualization-container', 
+                   originalConfig.data, 
+                   originalConfig.layout, 
+                   originalConfig.config || { responsive: true });
+});
+
+// Toggle edit mode
+function toggleEditMode() {
+    const displayMode = document.getElementById('display-mode');
+    const editMode = document.getElementById('edit-mode');
+    const previewPane = document.getElementById('preview-pane');
+
+    if (editMode.style.display === 'none') {
+        displayMode.style.display = 'none';
+        editMode.style.display = 'block';
+        previewPane.style.display = 'block';
+        // Update preview with current configuration
+        updateVisualization();
+    } else {
+        displayMode.style.display = 'block';
+        editMode.style.display = 'none';
+        previewPane.style.display = 'none';
+    }
+}
+
+// Update visualization preview
+function updateVisualization() {
+    try {
+        const config = JSON.parse(editor.getValue());
+        Plotly.newPlot('preview-container', config.data, config.layout, config.config);
+    } catch (error) {
+        console.error('Error updating visualization:', error);
+        document.getElementById('preview-container').innerHTML = `
+            <div class="alert alert-danger">
+                Error updating visualization: ${escapeHtml(error.message)}
+            </div>`;
+    }
+}
+
+// Handle form submission
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    try {
+        const config = JSON.parse(editor.getValue());
+        const formData = {
+            name: document.getElementById('viz-title').value,
+            description: document.getElementById('viz-description').value,
+            category: document.getElementById('viz-category').value,
+            chart_type: config.data[0].type,
+            config: config
+        };
+
+        fetch(`/api/viz/{{ visualization.id }}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                throw new Error(data.error || 'Failed to update visualization');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving changes:', error);
+            alert('Error saving changes: ' + error.message);
+        });
+    } catch (error) {
+        console.error('Error preparing data:', error);
+        alert('Error preparing data: ' + error.message);
+    }
+});
+
+// Format the code in the editor
+function formatCode() {
+    editor.getAction('editor.action.formatDocument').run();
+}
+
+// Add transform to configuration
+function addTransform() {
+    const transformType = document.getElementById('transform-type').value;
+    if (!transformType) return;
+
+    const currentConfig = JSON.parse(editor.getValue());
+    let transform = {};
+
+    switch (transformType) {
+        case 'sort':
+            transform = {
+                type: 'sort',
+                target: 'y',
+                order: 'ascending'
+            };
+            break;
+        case 'aggregate':
+            transform = {
+                type: 'aggregate',
+                aggregations: [
+                    {target: 'y', func: 'sum', enabled: true}
+                ]
+            };
+            break;
+        case 'filter':
+            transform = {
+                type: 'filter',
+                target: 'y',
+                operation: '>',
+                value: 0
+            };
+            break;
+        case 'groupby':
+            transform = {
+                type: 'groupby',
+                groups: [],
+                styles: []
+            };
+            break;
+    }
+
+    // Add transform to the first trace
+    if (!currentConfig.data[0].transforms) {
+        currentConfig.data[0].transforms = [];
+    }
+    currentConfig.data[0].transforms.push(transform);
+
+    // Update editor
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+
+    // Show transform settings
+    updateTransformSettings(transform, currentConfig.data[0].transforms.length - 1);
+}
+
+// Update transform settings display
+function updateTransformSettings(transform, index) {
+    const container = document.getElementById('transform-settings');
+    const html = `
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">${transform.type.charAt(0).toUpperCase() + transform.type.slice(1)} Transform</h6>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeTransform(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                ${getTransformSettingsHTML(transform)}
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+// Generate HTML for transform settings
+function getTransformSettingsHTML(transform) {
+    switch (transform.type) {
+        case 'sort':
+            return `
+                <div class="mb-2">
+                    <label class="form-label">Sort Order</label>
+                    <select class="form-select" onchange="updateTransformSetting('order', this.value)">
+                        <option value="ascending" ${transform.order === 'ascending' ? 'selected' : ''}>Ascending</option>
+                        <option value="descending" ${transform.order === 'descending' ? 'selected' : ''}>Descending</option>
+                    </select>
+                </div>
+            `;
+        case 'filter':
+            return `
+                <div class="mb-2">
+                    <label class="form-label">Operation</label>
+                    <select class="form-select" onchange="updateTransformSetting('operation', this.value)">
+                        <option value=">" ${transform.operation === '>' ? 'selected' : ''}>Greater Than</option>
+                        <option value="<" ${transform.operation === '<' ? 'selected' : ''}>Less Than</option>
+                        <option value="==" ${transform.operation === '==' ? 'selected' : ''}>Equal To</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Value</label>
+                    <input type="number" class="form-control" value="${transform.value}"
+                           onchange="updateTransformSetting('value', parseFloat(this.value))">
+                </div>
+            `;
+        // Add more cases for other transform types
+        default:
+            return '';
+    }
+}
+
+// Update transform setting
+function updateTransformSetting(setting, value) {
+    const currentConfig = JSON.parse(editor.getValue());
+    const transform = currentConfig.data[0].transforms[currentConfig.data[0].transforms.length - 1];
+    transform[setting] = value;
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+}
+
+// Remove transform
+function removeTransform(index) {
+    const currentConfig = JSON.parse(editor.getValue());
+    currentConfig.data[0].transforms.splice(index, 1);
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+    
+    // Update transform settings display
+    const container = document.getElementById('transform-settings');
+    container.children[index].remove();
+}
+
+// Update hover mode
+function updateHoverMode() {
+    const mode = document.getElementById('hover-mode').value;
+    const currentConfig = JSON.parse(editor.getValue());
+    
+    if (!currentConfig.layout) currentConfig.layout = {};
+    currentConfig.layout.hovermode = mode;
+    
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+}
+
+// Update zoom and pan settings
+document.getElementById('enable-zoom').addEventListener('change', function() {
+    const currentConfig = JSON.parse(editor.getValue());
+    if (!currentConfig.layout) currentConfig.layout = {};
+    if (!currentConfig.layout.xaxis) currentConfig.layout.xaxis = {};
+    if (!currentConfig.layout.yaxis) currentConfig.layout.yaxis = {};
+    
+    const setting = {
+        fixedrange: !this.checked
+    };
+    
+    currentConfig.layout.xaxis = {...currentConfig.layout.xaxis, ...setting};
+    currentConfig.layout.yaxis = {...currentConfig.layout.yaxis, ...setting};
+    
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+});
+
+document.getElementById('enable-pan').addEventListener('change', function() {
+    const currentConfig = JSON.parse(editor.getValue());
+    if (!currentConfig.config) currentConfig.config = {};
+    
+    currentConfig.config.scrollZoom = this.checked;
+    
+    editor.setValue(JSON.stringify(currentConfig, null, 2));
+    updateVisualization();
+});
+
+// Share functionality
+function shareVisualization() {
+    // Implementation for sharing
+}
+
+// Export functionality
+function exportVisualization() {
+    // Implementation for exporting
+}
+</script>
+{% endblock %}

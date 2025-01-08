@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <h1 class="display-1">500</h1>
+    <h2 class="mb-4">Server Error</h2>
+    <p class="lead mb-4">Sorry, something went wrong on our end. Please try again later.</p>
+    <div>
+        <a href="/" class="btn btn-primary me-2">Return Home</a>
+        <button class="btn btn-outline-secondary" onclick="window.location.reload()">Try Again</button>
+    </div>
+</div>
+{% endblock %}

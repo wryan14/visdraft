@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}All Visualizations - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Visualizations</h1>
+        <a href="/viz/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Create New
+        </a>
+    </div>
+
+    <!-- Category filters -->
+    <div class="mb-4">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-category="all">
+                All
+            </button>
+            {% for category in categories %}
+            <button type="button" class="btn btn-outline-secondary" data-category="{{ category }}">
+                {{ category }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Visualizations by category -->
+    {% for category, vizs in visualizations_by_category.items() %}
+    <div class="category-section mb-5" id="category-{{ category|lower }}">
+        <h2 class="h4 mb-3">{{ category }}</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for viz in vizs %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ viz.name }}</h5>
+                        <div class="viz-preview mb-3" style="height: 200px;" id="preview-{{ viz.id }}">
+                            <!-- Visualization preview will be rendered here -->
+                        </div>
+                        {% if viz.description %}
+                        <p class="card-text small text-muted">{{ viz.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ viz.chart_type }}</small>
+                            <div class="btn-group">
+                                <a href="/viz/{{ viz.id }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick='confirmDelete("viz", {{ viz.id }}, {{ viz.name|tojson }})'>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize previews for each visualization
+document.addEventListener('DOMContentLoaded', function() {
+    {% for category, vizs in visualizations_by_category.items() %}
+        {% for viz in vizs %}
+            try {
+                const config = {{ viz.config|safe }};
+                Plotly.newPlot('preview-{{ viz.id }}', 
+                    config.data, 
+                    {...config.layout, 
+                        showlegend: false,
+                        margin: { l: 40, r: 20, t: 40, b: 40 },
+                        height: 200
+                    },
+                    {
+                        displayModeBar: false,
+                        responsive: true
+                    }
+                );
+            } catch (error) {
+                console.error('Error creating preview for viz {{ viz.id }}:', error);
+            }
+        {% endfor %}
+    {% endfor %}
+});
+
+// Category filter functionality
+document.querySelectorAll('[data-category]').forEach(button => {
+    button.addEventListener('click', function() {
+        // Update active button
+        document.querySelectorAll('[data-category]').forEach(btn => 
+            btn.classList.remove('active'));
+        this.classList.add('active');
+
+        const selectedCategory = this.dataset.category;
+        document.querySelectorAll('.category-section').forEach(section => {
+            if (selectedCategory === 'all' || 
+                section.id === `category-${selectedCategory}`) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

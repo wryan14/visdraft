@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - VisEcosystem{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">Welcome to VisEcosystem</h1>
+            <p class="lead">Create, manage, and share your data visualizations</p>
+        </div>
+        <div class="col-auto">
+            <a href="/viz/new" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> New Visualization
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Visualizations -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h4 mb-0">Recent Visualizations</h2>
+                <a href="/visualizations" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% else %}
+                {% if recent_vizs %}
+                <div class="row">
+                    {% for viz in recent_vizs %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title d-flex justify-content-between align-items-start">
+                                    {{ viz.name }}
+                                    {% if viz.category %}
+                                    <span class="badge bg-secondary">{{ viz.category }}</span>
+                                    {% endif %}
+                                </h5>
+                                {% if viz.description %}
+                                <p class="card-text small text-muted">{{ viz.description[:100] }}{% if viz.description|length > 100 %}...{% endif %}</p>
+                                {% endif %}
+                                <div class="visualization-preview" id="viz-preview-{{ viz.id }}" style="height: 200px;"></div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">{{ viz.chart_type }}</small>
+                                    <a href="/viz/{{ viz.id }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-graph-up display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted mb-3">No visualizations yet</h5>
+                        <p class="mb-3">Create your first visualization to get started</p>
+                        <a href="/viz/new" class="btn btn-primary">Create Visualization</a>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Datasets -->
+    <div class="row">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h4 mb-0">Recent Datasets</h2>
+                <a href="/datasets" class="btn btn-outline-primary btn-sm">
+                    Manage Datasets
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Date Range</th>
+                            <th>Last Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dataset in recent_datasets %}
+                        <tr>
+                            <td>{{ dataset.name }}</td>
+                            <td>
+                                {% if dataset.category %}
+                                <span class="badge bg-secondary">{{ dataset.category }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ dataset.date_range or 'N/A' }}</td>
+                            <td>{{ dataset.last_used|datetime if dataset.last_used else 'Never' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="previewDataset({{ dataset.id }})">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <a href="/viz/new?dataset={{ dataset.id }}" class="btn btn-outline-success">
+                                        <i class="bi bi-graph-up"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not recent_datasets %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <i class="bi bi-database display-6 text-muted d-block mb-2"></i>
+                                <p class="text-muted mb-2">No datasets available</p>
+                                <button class="btn btn-primary btn-sm" onclick="document.getElementById('upload-dataset').click()">
+                                    Upload Dataset
+                                </button>
+                                <input type="file" id="upload-dataset" style="display: none" 
+                                       accept=".csv,.xlsx,.xls" onchange="uploadDataset(this)">
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dataset Preview Modal -->
+<div class="modal fade" id="datasetPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dataset Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="preview-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize visualization previews
+    {% for viz in recent_vizs %}
+    (function(vizId) {
+        try {
+            const config = {{ viz.config|tojson|safe }};
+            // Create a simplified version for preview
+            const previewConfig = {
+                data: config.data.map(trace => ({
+                    ...trace,
+                    x: trace.x?.slice(0, 10),
+                    y: trace.y?.slice(0, 10)
+                })),
+                layout: {
+                    ...config.layout,
+                    title: null,  // Remove title in preview
+                    height: 200,
+                    margin: { t: 20, r: 20, b: 30, l: 40 },
+                    showlegend: false,
+                    xaxis: { ...config.layout.xaxis, title: null },
+                    yaxis: { ...config.layout.yaxis, title: null }
+                }
+            };
+            Plotly.newPlot(`viz-preview-${vizId}`, previewConfig.data, previewConfig.layout, {
+                displayModeBar: false,
+                responsive: true
+            });
+        } catch (error) {
+            console.error(`Error creating preview for visualization ${vizId}:`, error);
+        }
+    })({{ viz.id }});
+    {% endfor %}
+
+    // Dataset preview function
+    function previewDataset(datasetId) {
+        const modal = new bootstrap.Modal(document.getElementById('datasetPreviewModal'));
+        const previewContent = document.getElementById('preview-content');
+        
+        previewContent.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>`;
+        
+        modal.show();
+        
+        fetch(`/api/data/preview/${datasetId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                const tableHeader = `
+                    <thead>
+                        <tr>
+                            ${data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+                        </tr>
+                    </thead>`;
+
+                const tableBody = `
+                    <tbody>
+                        ${data.data.slice(0, 5).map(row => `
+                            <tr>
+                                ${data.columns.map(col => `<td>${escapeHtml(row[col] ?? '')}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>`;
+
+                previewContent.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            ${tableHeader}
+                            ${tableBody}
+                        </table>
+                    </div>
+                    <div class="text-muted small mt-2">
+                        Showing ${Math.min(5, data.data.length)} of ${data.row_count} rows
+                    </div>`;
+            })
+            .catch(error => {
+                console.error('Preview error:', error);
+                previewContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading preview: ${escapeHtml(error.message)}
+                    </div>`;
+            });
+    }
+
+    // Upload dataset function
+    function uploadDataset(input) {
+        if (!input.files || !input.files[0]) return;
+
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+
+        fetch('/api/data/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.dataset_id) {
+                location.reload();
+            } else {
+                throw new Error(data.error || 'Upload failed');
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            alert('Error uploading dataset: ' + error.message);
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Datasets - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Manage Datasets</h1>
+        <button class="btn btn-primary" onclick="document.getElementById('upload-dataset').click()">
+            <i class="bi bi-upload"></i> Upload Dataset
+        </button>
+        <input type="file" id="upload-dataset" style="display: none" 
+               accept=".csv,.xlsx,.xls" onchange="uploadDataset(this)">
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Date Range</th>
+                            <th>Rows</th>
+                            <th>Last Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dataset in datasets %}
+                        <tr>
+                            <td>{{ dataset.name }}</td>
+                            <td>
+                                {% if dataset.category %}
+                                <span class="badge bg-secondary">{{ dataset.category }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ dataset.date_range or 'N/A' }}</td>
+                            <td>{{ dataset.row_count or 'N/A' }}</td>
+                            <td>{{ dataset.last_used|datetime if dataset.last_used else 'Never' }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" 
+                                            onclick="previewDataset({{ dataset.id }})">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger"
+                                    onclick='confirmDelete("dataset", {{ dataset.id }}, {{ dataset.name|tojson }})'>
+                                <i class="bi bi-trash"></i>
+                            </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dataset Preview Modal -->
+<div class="modal fade" id="datasetPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dataset Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="preview-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function uploadDataset(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+
+    fetch('/api/data/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.dataset_id) {
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Upload failed');
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        alert('Error uploading dataset: ' + error.message);
+    });
+}
+
+function previewDataset(datasetId) {
+    const modal = new bootstrap.Modal(document.getElementById('datasetPreviewModal'));
+    const previewContent = document.getElementById('preview-content');
+    
+    previewContent.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>`;
+    
+    modal.show();
+    
+    fetch(`/api/data/preview/${datasetId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            
+            const tableHeader = `
+                <thead>
+                    <tr>
+                        ${data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+                    </tr>
+                </thead>`;
+
+            const tableBody = `
+                <tbody>
+                    ${data.data.slice(0, 5).map(row => `
+                        <tr>
+                            ${data.columns.map(col => `<td>${escapeHtml(row[col] ?? '')}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>`;
+
+            previewContent.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        ${tableHeader}
+                        ${tableBody}
+                    </table>
+                </div>
+                <div class="text-muted small mt-2">
+                    Showing ${Math.min(5, data.data.length)} of ${data.row_count} rows
+                </div>`;
+        })
+        .catch(error => {
+            console.error('Preview error:', error);
+            previewContent.innerHTML = `
+                <div class="alert alert-danger">
+                    Error loading preview: ${escapeHtml(error.message)}
+                </div>`;
+        });
+}
+</script>
+{% endblock %}
