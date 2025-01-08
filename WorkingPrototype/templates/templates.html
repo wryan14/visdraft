@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h1>Visualization Templates</h1>
+    <p class="lead">Choose a template to get started quickly</p>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            {% for category, templates in templates_by_category.items() %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ category }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if templates %}
+                    <div class="row">
+                        {% for template in templates %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ template.name }}</h6>
+                                    <p class="card-text small">{{ template.description }}</p>
+                                    <a href="/viz/new?template={{ template.id }}" class="btn btn-sm btn-primary">Use Template</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No templates in this category yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

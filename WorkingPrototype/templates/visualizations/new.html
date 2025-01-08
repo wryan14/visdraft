@@ -1,0 +1,744 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Visualization - Library Viz{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Wizard Progress -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="progress" style="height: 3px;">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="wizard-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wizard Form -->
+    <form id="visualization-wizard" class="needs-validation" novalidate>
+       <!-- Step 1: Choose Chart Type -->
+
+<div class="wizard-step" data-step="1">
+    <h2 class="h4 mb-4">Choose Chart Type</h2>
+    <div class="row g-4">
+        <div class="col-md-3">
+            <div class="card chart-type-card cursor-pointer" data-chart-type="line" onclick="selectChartType(this, 'line')">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-graph-up fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Line Chart</h5>
+                    <p class="card-text text-muted small">Best for showing trends and changes over time</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card chart-type-card cursor-pointer" data-chart-type="bar" onclick="selectChartType(this, 'bar')">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-bar-chart fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Bar Chart</h5>
+                    <p class="card-text text-muted small">Best for comparing values across categories</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card chart-type-card cursor-pointer" data-chart-type="scatter" onclick="selectChartType(this, 'scatter')">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-diagram-2 fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Scatter Plot</h5>
+                    <p class="card-text text-muted small">Best for showing relationships between variables</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card chart-type-card cursor-pointer" data-chart-type="histogram" onclick="selectChartType(this, 'histogram')">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-bar-chart-steps fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Histogram</h5>
+                    <p class="card-text text-muted small">Best for showing distribution of values</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+        <!-- Step 2: Select Data -->
+        <div class="wizard-step" data-step="2" style="display: none;">
+            <h2 class="h4 mb-4">Select Your Data</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Choose Dataset</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Existing Datasets</label>
+                                <select class="form-select" id="dataset-select">
+                                    <option value="">Select a dataset...</option>
+                                    {% for dataset in datasets %}
+                                    <option value="{{ dataset.id }}">{{ dataset.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-muted">or</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Upload New Dataset</label>
+                                <input type="file" class="form-control" id="dataset-upload" accept=".csv,.xlsx">
+                                <div class="form-text">Supported formats: CSV, Excel</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Data Preview</h5>
+                            <div id="data-preview" class="table-responsive">
+                                <!-- Data preview will be shown here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Configure Visualization -->
+<div class="wizard-step" data-step="3" style="display: none;">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Data Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">X-Axis</label>
+                                <select class="form-select" id="x-axis-select" onchange="updateVisualization()">
+                                    <option value="">Select X-Axis...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Y-Axis</label>
+                                <select class="form-select" id="y-axis-select" onchange="updateVisualization()">
+                                    <option value="">Select Y-Axis...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Configuration</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatCode()">
+                            <i class="bi bi-code-square"></i> Format
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="updateVisualization()">
+                            <i class="bi bi-play-fill"></i> Update Preview
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="config-editor" style="height: 500px; border-radius: 0;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="visualization-preview" style="height: 400px;">
+                        <!-- Plotly visualization will be rendered here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="viz-title" onchange="updateVisualization()">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="viz-description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="viz-category">
+                            <option value="circulation">Circulation</option>
+                            <option value="collections">Collections</option>
+                            <option value="programs">Programs</option>
+                            <option value="usage">Usage Statistics</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Navigation Buttons -->
+        <div class="row mt-4">
+            <div class="col">
+                <button type="button" class="btn btn-secondary" id="prev-step" style="display: none;">
+                    <i class="bi bi-arrow-left"></i> Previous
+                </button>
+                <button type="button" class="btn btn-primary" id="next-step">
+                    Next <i class="bi bi-arrow-right"></i>
+                </button>
+                <button type="submit" class="btn btn-success" id="save-viz" style="display: none;">
+                    <i class="bi bi-save"></i> Save Visualization
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global state
+    let editor;
+    let currentStep = 1;
+    const totalSteps = 3;
+    let currentDataset = null;
+    let selectedChartType = null;
+    
+    // Utility function to escape HTML and prevent XSS
+    function escapeHtml(unsafe) {
+        if (unsafe == null) return '';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+    // Initialize Monaco Editor
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('config-editor'), {
+            value: JSON.stringify(defaultConfigs.line, null, 2),
+            language: 'json',
+            theme: 'vs',
+            minimap: { enabled: false },
+            automaticLayout: true,
+            formatOnPaste: true,
+            formatOnType: true,
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            lineNumbers: 'on',
+            renderLineHighlight: 'all',
+            suggest: {
+                snippetsPreventQuickSuggestions: false
+            }
+        });
+    });
+    
+    // Format the code in the editor
+    function formatCode() {
+        editor.getAction('editor.action.formatDocument').run();
+    }
+    
+    // Function to populate axis selectors
+function updateAxisSelectors(columns) {
+    const xAxisSelect = document.getElementById('x-axis-select');
+    const yAxisSelect = document.getElementById('y-axis-select');
+    
+    if (!xAxisSelect || !yAxisSelect) return;
+
+    const columnOptions = columns.map(col => 
+        `<option value="${escapeHtml(col)}">${escapeHtml(col)}</option>`
+    ).join('');
+
+    xAxisSelect.innerHTML = `<option value="">Select X-Axis...</option>${columnOptions}`;
+    yAxisSelect.innerHTML = `<option value="">Select Y-Axis...</option>${columnOptions}`;
+
+    // Auto-select first two columns for initial visualization
+    if (columns.length >= 2) {
+        xAxisSelect.value = columns[0];
+        yAxisSelect.value = columns[1];
+    }
+}
+
+// Function to update visualization preview
+function updateVisualization() {
+    const previewContainer = document.getElementById('visualization-preview');
+    const xAxis = document.getElementById('x-axis-select')?.value;
+    const yAxis = document.getElementById('y-axis-select')?.value;
+
+    if (!previewContainer) {
+        console.error('Preview container not found');
+        return;
+    }
+
+    if (!editor) {
+        previewContainer.innerHTML = '<div class="alert alert-warning">Editor not initialized. Please try again.</div>';
+        return;
+    }
+
+    try {
+        let config;
+        try {
+            config = JSON.parse(editor.getValue());
+        } catch (parseError) {
+            previewContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    Invalid JSON configuration. Please check your syntax.
+                </div>`;
+            return;
+        }
+
+        if (!currentDataset || !xAxis || !yAxis) {
+            previewContainer.innerHTML = `
+                <div class="alert alert-info">
+                    Please select both X and Y axis data to preview the visualization.
+                </div>`;
+            return;
+        }
+
+        // Update data in configuration
+        if (config.data && config.data[0]) {
+            if (config.data[0].type === 'histogram') {
+                config.data[0].x = currentDataset.data.map(row => row[xAxis]);
+            } else {
+                config.data[0].x = currentDataset.data.map(row => row[xAxis]);
+                config.data[0].y = currentDataset.data.map(row => row[yAxis]);
+            }
+        }
+
+        // Update title if set
+        const vizTitle = document.getElementById('viz-title')?.value;
+        if (vizTitle && config.layout) {
+            config.layout.title = {
+                ...config.layout.title,
+                text: vizTitle
+            };
+        }
+
+        // Update axis labels
+        if (config.layout) {
+            config.layout.xaxis = {
+                ...config.layout.xaxis,
+                title: { text: xAxis, font: { size: 14 } }
+            };
+            config.layout.yaxis = {
+                ...config.layout.yaxis,
+                title: { text: yAxis, font: { size: 14 } }
+            };
+        }
+
+        // Create visualization
+        Plotly.newPlot(previewContainer, config.data, config.layout, config.config);
+
+    } catch (error) {
+        console.error('Error updating visualization:', error);
+        previewContainer.innerHTML = `
+            <div class="alert alert-danger">
+                Error creating visualization: ${escapeHtml(error.message)}
+            </div>`;
+    }
+}
+
+// Update showStep function to handle visualization initialization
+function showStep(step) {
+    document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+    document.querySelector(`[data-step="${step}"]`).style.display = 'block';
+    
+    // Update buttons
+    const prevBtn = document.getElementById('prev-step');
+    const nextBtn = document.getElementById('next-step');
+    const saveBtn = document.getElementById('save-viz');
+    
+    prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
+    nextBtn.style.display = step < totalSteps ? 'inline-block' : 'none';
+    saveBtn.style.display = step === totalSteps ? 'inline-block' : 'none';
+    
+    updateProgress();
+
+    // If we're on the visualization step, initialize the preview
+    if (step === 3) {
+        // Short delay to ensure editor is ready
+        setTimeout(() => {
+            updateVisualization();
+        }, 100);
+    }
+}
+    
+    // Function to update the visualization preview
+    function updatePreview() {
+        const previewContainer = document.getElementById('visualization-preview');
+        if (!previewContainer) return;
+    
+        try {
+            const config = JSON.parse(editor.getValue());
+            
+            // Update with current dataset if available
+            if (currentDataset) {
+                const xAxis = document.getElementById('x-axis-select').value;
+                const yAxis = document.getElementById('y-axis-select').value;
+                
+                if (xAxis && yAxis) {
+                    if (config.data[0].type === 'pie') {
+                        config.data[0].values = currentDataset.data.map(row => row[yAxis]);
+                        config.data[0].labels = currentDataset.data.map(row => row[xAxis]);
+                    } else {
+                        config.data[0].x = currentDataset.data.map(row => row[xAxis]);
+                        config.data[0].y = currentDataset.data.map(row => row[yAxis]);
+                    }
+                }
+            }
+            
+            // Update title if set
+            const vizTitle = document.getElementById('viz-title').value;
+            if (vizTitle && config.layout) {
+                config.layout.title.text = vizTitle;
+            }
+            
+            Plotly.newPlot(previewContainer, config.data, config.layout, config.config);
+        } catch (error) {
+            console.error('Error updating preview:', error);
+            previewContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    Error updating visualization: ${escapeHtml(error.message)}
+                </div>`;
+        }
+    }
+    
+    // Function to update axis selectors with available columns
+    function updateAxisSelectors(columns) {
+        const xAxisSelect = document.getElementById('x-axis-select');
+        const yAxisSelect = document.getElementById('y-axis-select');
+        
+        if (!xAxisSelect || !yAxisSelect) return;
+    
+        const columnOptions = columns.map(col => 
+            `<option value="${escapeHtml(col)}">${escapeHtml(col)}</option>`
+        ).join('');
+    
+        xAxisSelect.innerHTML = `<option value="">Select X-Axis...</option>${columnOptions}`;
+        yAxisSelect.innerHTML = `<option value="">Select Y-Axis...</option>${columnOptions}`;
+    }
+    
+    // Function to update the data preview table
+    function updateDataPreview(data) {
+        const previewContainer = document.getElementById('data-preview');
+        if (!previewContainer) return;
+    
+        try {
+            if (data.error) {
+                previewContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        ${escapeHtml(data.error)}
+                    </div>`;
+                return;
+            }
+    
+            // Store the current dataset globally
+            currentDataset = data;
+    
+            // Create table header
+            const tableHeader = `
+                <thead>
+                    <tr>
+                        ${data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('')}
+                    </tr>
+                </thead>`;
+    
+            // Create table body with first 5 rows
+            const tableBody = `
+                <tbody>
+                    ${data.data.slice(0, 5).map(row => `
+                        <tr>
+                            ${data.columns.map(col => `<td>${escapeHtml(row[col] ?? '')}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>`;
+    
+            // Update preview container
+            previewContainer.innerHTML = `
+                <table class="table table-sm table-striped">
+                    ${tableHeader}
+                    ${tableBody}
+                </table>
+                <div class="text-muted small">
+                    Showing ${Math.min(5, data.data.length)} of ${data.row_count} rows
+                </div>`;
+    
+            // Update axis selectors
+            updateAxisSelectors(data.columns);
+        } catch (error) {
+            console.error('Error updating preview:', error);
+            previewContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    Error displaying preview: ${escapeHtml(error.message)}
+                </div>`;
+        }
+    }
+    
+    // Update progress bar
+    function updateProgress() {
+        const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+        document.getElementById('wizard-progress').style.width = `${progress}%`;
+    }
+    
+    // Show/hide steps
+    function showStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+        document.querySelector(`[data-step="${step}"]`).style.display = 'block';
+        
+        // Update buttons
+        const prevBtn = document.getElementById('prev-step');
+        const nextBtn = document.getElementById('next-step');
+        const saveBtn = document.getElementById('save-viz');
+        
+        prevBtn.style.display = step > 1 ? 'inline-block' : 'none';
+        nextBtn.style.display = step < totalSteps ? 'inline-block' : 'none';
+        saveBtn.style.display = step === totalSteps ? 'inline-block' : 'none';
+        
+        updateProgress();
+    
+        // If we're on the visualization step, update the preview
+        if (step === 3) {
+            updatePreview();
+        }
+    }
+    
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize first step
+        showStep(1);
+    
+        // Handle chart type selection
+        document.querySelectorAll('.chart-type-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Update selection
+                document.querySelectorAll('.chart-type-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Store selected chart type
+                selectedChartType = this.dataset.chartType;
+                
+                // Update editor with default config
+                if (editor && defaultConfigs[selectedChartType]) {
+                    editor.setValue(JSON.stringify(defaultConfigs[selectedChartType], null, 2));
+                }
+            });
+        });
+    
+        // Handle dataset selection
+        const datasetSelect = document.getElementById('dataset-select');
+        if (datasetSelect) {
+            datasetSelect.addEventListener('change', function() {
+                if (this.value) {
+                    fetch(`/api/data/preview/${this.value}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            updateDataPreview(data);
+                        })
+                        .catch(error => {
+                            console.error('Error fetching preview:', error);
+                            const previewContainer = document.getElementById('data-preview');
+                            if (previewContainer) {
+                                previewContainer.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        Error loading preview: ${escapeHtml(error.message)}
+                                    </div>`;
+                            }
+                        });
+                }
+            });
+        }
+    
+        // Handle file upload
+        const datasetUpload = document.getElementById('dataset-upload');
+        if (datasetUpload) {
+            datasetUpload.addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+    
+                const formData = new FormData();
+                formData.append('file', file);
+    
+                // Show loading state
+                const previewContainer = document.getElementById('data-preview');
+                if (previewContainer) {
+                    previewContainer.innerHTML = `
+                        <div class="text-center py-4">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Uploading and processing file...</div>
+                        </div>`;
+                }
+    
+                fetch('/api/data/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Upload failed: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.dataset_id) {
+                        // After successful upload, fetch the preview
+                        return fetch(`/api/data/preview/${data.dataset_id}`);
+                    } else {
+                        throw new Error('No dataset ID received from server');
+                    }
+                })
+                .then(response => response.json())
+                .then(data => updateDataPreview(data))
+                .catch(error => {
+                    console.error('Upload error:', error);
+                    if (previewContainer) {
+                        previewContainer.innerHTML = `
+                            <div class="alert alert-danger">
+                                ${escapeHtml(error.message)}
+                            </div>`;
+                    }
+                });
+            });
+        }
+    
+        // Navigation event listeners
+        document.getElementById('prev-step').addEventListener('click', () => {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+    
+        document.getElementById('next-step').addEventListener('click', () => {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        });
+    
+        // Handle title changes
+        const vizTitle = document.getElementById('viz-title');
+        if (vizTitle) {
+            vizTitle.addEventListener('input', updatePreview);
+        }
+    
+        const vizForm = document.getElementById('visualization-wizard');
+        if (vizForm) {
+            vizForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                try {
+                    // Get the current configuration from the editor
+                    const config = JSON.parse(editor.getValue());
+                    
+                    // Get the selected data
+                    const xAxis = document.getElementById('x-axis-select')?.value;
+                    const yAxis = document.getElementById('y-axis-select')?.value;
+                    
+                    // Create a clean version of the config
+                    const cleanConfig = {
+                        data: [{
+                            type: config.data[0].type,
+                            mode: config.data[0].mode,
+                            x: currentDataset && xAxis ? currentDataset.data.map(row => row[xAxis]) : [],
+                            y: currentDataset && yAxis ? currentDataset.data.map(row => row[yAxis]) : [],
+                            name: 'Data Series',
+                            marker: config.data[0].marker || {},
+                            line: config.data[0].line || {}
+                        }],
+                        layout: {
+                            title: {
+                                text: document.getElementById('viz-title').value || 'Untitled Visualization'
+                            },
+                            xaxis: {
+                                title: { text: xAxis || 'X Axis' },
+                                showgrid: true,
+                                gridcolor: '#E1E1E1'
+                            },
+                            yaxis: {
+                                title: { text: yAxis || 'Y Axis' },
+                                showgrid: true,
+                                gridcolor: '#E1E1E1'
+                            },
+                            showlegend: true,
+                            template: 'plotly_white',
+                            plot_bgcolor: '#FFFFFF',
+                            paper_bgcolor: '#FFFFFF',
+                            margin: { l: 60, r: 30, b: 60, t: 80 }
+                        }
+                    };
+            
+                    const formData = {
+                        name: document.getElementById('viz-title').value || 'Untitled Visualization',
+                        description: document.getElementById('viz-description').value || '',
+                        category: document.getElementById('viz-category').value || '',
+                        chart_type: config.data[0].type,
+                        config: cleanConfig,
+                        data_source: currentDataset ? {
+                            datasetId: currentDataset.id,
+                            columns: { x: xAxis, y: yAxis }
+                        } : null,
+                        shared: false,
+                        tags: []
+                    };
+                    
+                    fetch('/api/viz/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.error || 'Failed to save visualization');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.id) {
+                            window.location.href = `/viz/${data.id}`;
+                        } else {
+                            throw new Error('No visualization ID received');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving visualization:', error);
+                        alert('Error saving visualization: ' + error.message);
+                    });
+                } catch (error) {
+                    console.error('Error preparing visualization data:', error);
+                    alert('Error preparing visualization data: ' + error.message);
+                }
+            });
+        }
+    });
+    </script>
+{% endblock %}
