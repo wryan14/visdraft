@@ -1,0 +1,148 @@
+{# shared/templates/documentation/home.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-2">
+            <i data-feather="book-open" class="w-8 h-8 text-blue-500"></i>
+            <h1 class="text-3xl font-bold text-gray-900">API Documentation</h1>
+        </div>
+        <p class="text-lg text-gray-600 max-w-3xl">
+            Comprehensive documentation for all available APIs in the ecosystem.
+        </p>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="mb-8 bg-white rounded-lg border p-4">
+        <div class="flex flex-col md:flex-row gap-4">
+            <!-- Search -->
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" 
+                           id="searchDocs" 
+                           class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                           placeholder="Search APIs...">
+                    <i data-feather="search" class="absolute left-3 top-2.5 w-5 h-5 text-gray-400"></i>
+                </div>
+            </div>
+            <!-- Version Filter (if needed later) -->
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+                <i data-feather="info" class="w-4 h-4"></i>
+                <span>{{ apis|length }} APIs Available</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Grid -->
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3" id="apiGrid">
+        {% for api in apis %}
+        <div class="bg-white rounded-lg border hover:shadow-lg transition-shadow duration-200" 
+             data-api-card
+             data-api-name="{{ api.name }}"
+             data-api-description="{{ api.description }}">
+            
+            <!-- Card Header -->
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-blue-50 rounded-lg">
+                            <i data-feather="{{ api.interface.icon|default('box') }}" class="w-6 h-6 text-blue-500"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">{{ api.name }}</h2>
+                            <span class="text-sm text-gray-500">v{{ api.version }}</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-gray-600">{{ api.description }}</p>
+            </div>
+            
+            <!-- Card Content -->
+            <div class="p-6 space-y-4">
+                <!-- Features/Capabilities -->
+                <div class="space-y-2">
+                    {% if api.interface.accepted_files %}
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i data-feather="file-text" class="w-4 h-4 mr-2"></i>
+                        <span>Accepts: {{ api.interface.accepted_files }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if api.interface.parameter_fields %}
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i data-feather="settings" class="w-4 h-4 mr-2"></i>
+                        <span>{{ api.interface.parameter_fields|length }} Configuration Parameters</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Links -->
+                <div class="flex items-center justify-between pt-4 border-t">
+                    <a href="/docs/api/{{ api.registry_key }}" 
+                       class="text-blue-500 hover:text-blue-700 text-sm font-medium flex items-center">
+                        View Documentation
+                        <i data-feather="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </a>
+                    <a href="{{ api.url_prefix }}" 
+                       class="text-gray-500 hover:text-gray-700 text-sm font-medium flex items-center">
+                        Try It
+                        <i data-feather="external-link" class="w-4 h-4 ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Search functionality
+const searchInput = document.getElementById('searchDocs');
+const apiGrid = document.getElementById('apiGrid');
+const apiCards = document.querySelectorAll('[data-api-card]');
+
+searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    
+    apiCards.forEach(card => {
+        const apiName = card.getAttribute('data-api-name').toLowerCase();
+        const apiDesc = card.getAttribute('data-api-description').toLowerCase();
+        
+        if (apiName.includes(searchTerm) || apiDesc.includes(searchTerm)) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+    
+    // Show/hide empty state message
+    const visibleCards = apiGrid.querySelectorAll('[data-api-card]:not(.hidden)');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (visibleCards.length === 0) {
+        if (!emptyState) {
+            const emptyStateHtml = `
+                <div id="emptyState" class="col-span-full py-12 text-center">
+                    <i data-feather="search" class="w-12 h-12 mx-auto text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900">No APIs Found</h3>
+                    <p class="mt-2 text-gray-500">Try adjusting your search terms</p>
+                </div>
+            `;
+            apiGrid.insertAdjacentHTML('beforeend', emptyStateHtml);
+            feather.replace();
+        }
+    } else if (emptyState) {
+        emptyState.remove();
+    }
+});
+
+// Initialize Feather icons
+document.addEventListener('DOMContentLoaded', () => {
+    feather.replace();
+});
+</script>
+{% endblock %}

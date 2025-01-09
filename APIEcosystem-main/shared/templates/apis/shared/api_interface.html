@@ -1,0 +1,469 @@
+{# shared/templates/apis/_shared/api_interface.html #}
+{% extends "base.html" %}
+
+{% block title %}{{ api_name }} - API Interface{% endblock %}
+
+{% block main_content %}
+<div class="max-w-4xl mx-auto p-6 space-y-6">
+    <!-- API Status Bar -->
+    <div class="bg-green-50 text-green-700 px-4 py-2 rounded-lg flex items-center justify-between">
+        <div class="flex items-center">
+            <i data-feather="check-circle" class="w-5 h-5 mr-2"></i>
+            <span>API Status: Operational</span>
+        </div>
+        <div class="text-sm">
+            Version: {{ interface_config.version|default('1.0.0') }}
+        </div>
+    </div>
+
+    <!-- Header Section with Enhanced Styling -->
+    <div class="flex items-center space-x-4 pb-4 border-b">
+        <div class="p-3 bg-blue-50 rounded-lg">
+            <i data-feather="{{ interface_config.icon }}" class="w-6 h-6 text-blue-600"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-semibold">{{ api_name }}</h1>
+            <p class="text-gray-600">{{ api_description }}</p>
+        </div>
+    </div>
+
+    <!-- Main Interface with Improved Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Input Section -->
+        <div class="space-y-4">
+            <!-- File Upload with Progress Indicator -->
+            <div class="p-4 border rounded-lg bg-white">
+                <h2 class="text-lg font-medium mb-4 flex items-center">
+                    <i data-feather="upload" class="w-5 h-5 mr-2 text-blue-500"></i>
+                    Input Files
+                </h2>
+                <form id="uploadForm" 
+                      class="border-2 border-dashed rounded-lg p-6 text-center transition-colors duration-200"
+                      ondragover="this.classList.add('border-blue-500', 'bg-blue-50')"
+                      ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50')"
+                      ondrop="this.classList.remove('border-blue-500', 'bg-blue-50')">
+                    <input
+                        type="file"
+                        accept="{{ interface_config.accepted_files }}"
+                        class="hidden"
+                        id="file-upload"
+                        multiple
+                    >
+                    <label 
+                        for="file-upload" 
+                        class="cursor-pointer flex flex-col items-center"
+                    >
+                        <i data-feather="upload-cloud" class="w-12 h-12 text-blue-400 mb-2"></i>
+                        <span class="text-sm text-gray-600">
+                            Drop files here or click to upload
+                        </span>
+                        <span class="text-xs text-gray-500 mt-1">
+                            Accepted formats: {{ interface_config.accepted_files }}
+                        </span>
+                    </label>
+                </form>
+                <!-- Upload Progress -->
+                <div id="uploadProgress" class="mt-4 hidden">
+                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 transition-all duration-200" style="width: 0%"></div>
+                    </div>
+                </div>
+                <!-- File List with Enhanced Styling -->
+                <div id="fileList" class="mt-4 hidden">
+                    <h3 class="text-sm font-medium mb-2">Uploaded Files:</h3>
+                    <ul class="text-sm text-gray-600 space-y-2" id="uploadedFiles"></ul>
+                </div>
+            </div>
+
+            <!-- Parameters Section with Validation -->
+            <div class="p-4 border rounded-lg bg-white">
+                <div class="flex items-center mb-4">
+                    <i data-feather="sliders" class="w-5 h-5 mr-2 text-blue-500"></i>
+                    <h2 class="text-lg font-medium">Parameters</h2>
+                </div>
+                <form id="parametersForm" class="space-y-4">
+                    {% for param in interface_config.parameter_fields %}
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ param|replace('_', ' ')|title }}
+                            {% if param in interface_config.required_fields|default([]) %}
+                            <span class="text-red-500">*</span>
+                            {% endif %}
+                        </label>
+                        <input
+                            type="text"
+                            name="{{ param }}"
+                            class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            {% if param in interface_config.required_fields|default([]) %}
+                            required
+                            {% endif %}
+                        >
+                        <div class="validation-message text-xs text-red-500 mt-1 hidden"></div>
+                    </div>
+                    {% endfor %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Output Section with Enhanced Visualization -->
+        <div class="space-y-4">
+            <div class="p-4 border rounded-lg bg-white h-full">
+                <h2 class="text-lg font-medium mb-4 flex items-center">
+                    <i data-feather="terminal" class="w-5 h-5 mr-2 text-blue-500"></i>
+                    Results
+                </h2>
+                <div id="resultsArea" class="flex items-center justify-center h-64 text-gray-400 rounded-lg border-2 border-dashed">
+                    <div class="text-center">
+                        <i data-feather="box" class="w-8 h-8 mx-auto mb-2"></i>
+                        Results will appear here
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons with Loading States -->
+    <div class="flex justify-between items-center">
+        <div class="text-sm text-gray-500" id="processingStatus"></div>
+        <div class="flex space-x-4">
+            <button
+                id="resetButton"
+                class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center"
+                onclick="resetForm()"
+            >
+                <i data-feather="refresh-cw" class="w-4 h-4 mr-2"></i>
+                Reset
+            </button>
+            <button
+                id="processButton"
+                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center"
+                onclick="processFiles()"
+            >
+                <span class="flex items-center">
+                    Process
+                    <i data-feather="play" class="w-4 h-4 ml-2"></i>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Alert with Enhanced Styling -->
+    <div id="errorAlert" class="hidden fixed bottom-4 right-4 max-w-md bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-lg" role="alert">
+        <div class="flex">
+            <i data-feather="alert-circle" class="w-5 h-5 mr-2"></i>
+            <div>
+                <strong class="font-bold">Error!</strong>
+                <span id="errorMessage" class="block"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="successToast" class="hidden fixed bottom-4 right-4 max-w-md bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-lg">
+        <div class="flex">
+            <i data-feather="check-circle" class="w-5 h-5 mr-2"></i>
+            <span id="successMessage"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// File Upload Handling
+let uploadedFiles = [];
+let totalProgress = 0;
+
+// Drag and Drop Enhancement
+const uploadForm = document.getElementById('uploadForm');
+uploadForm.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+uploadForm.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
+
+document.getElementById('file-upload').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    handleFiles(files);
+});
+
+async function handleFiles(files) {
+    uploadedFiles = [];
+    totalProgress = 0;
+    updateUploadProgress(0);
+    showUploadProgress();
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch(`/api/{{ api_type }}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                uploadedFiles.push(result.filename);
+                totalProgress = ((i + 1) / files.length) * 100;
+                updateUploadProgress(totalProgress);
+                showSuccess(`Successfully uploaded ${file.name}`);
+            } else {
+                showError(result.error);
+            }
+        } catch (error) {
+            showError(`Error uploading ${file.name}`);
+        }
+    }
+    
+    updateFileList();
+}
+
+function showUploadProgress() {
+    document.getElementById('uploadProgress').classList.remove('hidden');
+}
+
+function updateUploadProgress(progress) {
+    const progressBar = document.querySelector('#uploadProgress .bg-blue-500');
+    progressBar.style.width = `${progress}%`;
+}
+
+function updateFileList() {
+    const fileList = document.getElementById('fileList');
+    const uploadedFilesList = document.getElementById('uploadedFiles');
+    
+    if (uploadedFiles.length > 0) {
+        fileList.classList.remove('hidden');
+        uploadedFilesList.innerHTML = uploadedFiles.map(filename => `
+            <li class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div class="flex items-center">
+                    <i data-feather="file" class="w-4 h-4 mr-2 text-blue-500"></i>
+                    <span>${filename}</span>
+                </div>
+                <button onclick="removeFile('${filename}')" class="text-red-500 hover:text-red-700">
+                    <i data-feather="x" class="w-4 h-4"></i>
+                </button>
+            </li>
+        `).join('');
+        feather.replace();
+    } else {
+        fileList.classList.add('hidden');
+    }
+}
+
+function removeFile(filename) {
+    uploadedFiles = uploadedFiles.filter(f => f !== filename);
+    updateFileList();
+}
+
+// Form Validation
+function validateForm() {
+    const form = document.getElementById('parametersForm');
+    const inputs = form.querySelectorAll('input[required]');
+    let isValid = true;
+
+    inputs.forEach(input => {
+        const validationMessage = input.parentElement.querySelector('.validation-message');
+        if (!input.value.trim()) {
+            validationMessage.textContent = 'This field is required';
+            validationMessage.classList.remove('hidden');
+            isValid = false;
+        } else {
+            validationMessage.classList.add('hidden');
+        }
+    });
+
+    return isValid;
+}
+
+// Processing Functions
+async function processFiles() {
+    if (uploadedFiles.length === 0) {
+        showError('Please upload at least one file');
+        return;
+    }
+
+    if (!validateForm()) {
+        showError('Please fill in all required fields');
+        return;
+    }
+
+    const processButton = document.getElementById('processButton');
+    const resultsArea = document.getElementById('resultsArea');
+    const processingStatus = document.getElementById('processingStatus');
+    
+    const formData = new FormData(document.getElementById('parametersForm'));
+    const parameters = Object.fromEntries(formData.entries());
+
+    updateProcessingState(true);
+    
+    try {
+        const response = await fetch(`/api/{{ api_type }}/process`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                files: uploadedFiles,
+                parameters: parameters
+            })
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+            displayResults(result);
+            showSuccess('Processing completed successfully');
+        } else {
+            showError(result.error);
+        }
+    } catch (error) {
+        showError('Error processing files');
+    } finally {
+        updateProcessingState(false);
+    }
+}
+
+function updateProcessingState(isProcessing) {
+    const processButton = document.getElementById('processButton');
+    const processingStatus = document.getElementById('processingStatus');
+    
+    processButton.disabled = isProcessing;
+    processButton.innerHTML = isProcessing ? `
+        <span class="flex items-center">
+            Processing...
+            <div class="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+        </span>
+    ` : `
+        <span class="flex items-center">
+            Process
+            <i data-feather="play" class="w-4 h-4 ml-2"></i>
+        </span>
+    `;
+
+    processingStatus.textContent = isProcessing ? 'Processing files...' : '';
+    feather.replace();
+}
+
+function displayResults(result) {
+    const resultsArea = document.getElementById('resultsArea');
+    resultsArea.innerHTML = `
+        <div class="bg-gray-50 p-4 rounded-lg w-full">
+            <div class="flex items-center mb-4">
+                <i data-feather="check-circle" class="w-5 h-5 text-green-500 mr-2"></i>
+                <span class="font-medium">Processing Complete</span>
+            </div>
+            <pre class="text-sm overflow-auto max-h-96 bg-white p-4 rounded border">${JSON.stringify(result, null, 2)}</pre>
+        </div>
+    `;
+    feather.replace();
+}
+
+// Utility Functions
+function resetForm() {
+    document.getElementById('uploadForm').reset();
+    document.getElementById('parametersForm').reset();
+    document.getElementById('resultsArea').innerHTML = `
+        <div class="text-center">
+            <i data-feather="box" class="w-8 h-8 mx-auto mb-2"></i>
+            Results will appear here
+        </div>
+    `;
+    document.getElementById('errorAlert').classList.add('hidden');
+    document.getElementById('successToast').classList.add('hidden');
+    document.getElementById('uploadProgress').classList.add('hidden');
+    document.querySelectorAll('.validation-message').forEach(msg => msg.classList.add('hidden'));
+    uploadedFiles = [];
+    updateFileList();
+    feather.replace();
+}
+
+function showError(message) {
+    const errorAlert = document.getElementById('errorAlert');
+    const errorMessage = document.getElementById('errorMessage');
+    errorMessage.textContent = message;
+    
+    // Hide any existing success message
+    hideSuccess();
+    
+    // Show error message
+    errorAlert.classList.remove('hidden');
+    errorAlert.classList.add('animate-bounce');
+    
+    // Remove bounce animation after one iteration
+    setTimeout(() => {
+        errorAlert.classList.remove('animate-bounce');
+    }, 1000);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        errorAlert.classList.add('hidden');
+    }, 5000);
+}
+
+function showSuccess(message) {
+    const successToast = document.getElementById('successToast');
+    const successMessage = document.getElementById('successMessage');
+    successMessage.textContent = message;
+    
+    // Hide any existing error message
+    hideError();
+    
+    // Show success message
+    successToast.classList.remove('hidden');
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        hideSuccess();
+    }, 3000);
+}
+
+function hideError() {
+    const errorAlert = document.getElementById('errorAlert');
+    errorAlert.classList.add('hidden');
+}
+
+function hideSuccess() {
+    const successToast = document.getElementById('successToast');
+    successToast.classList.add('hidden');
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + Enter to process
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        processFiles();
+    }
+    // Esc to reset
+    if (e.key === 'Escape') {
+        resetForm();
+    }
+});
+
+// Initialize Feather icons and form validation
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+    
+    // Add input validation listeners
+    const form = document.getElementById('parametersForm');
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const validationMessage = this.parentElement.querySelector('.validation-message');
+            if (this.value.trim()) {
+                validationMessage.classList.add('hidden');
+            } else {
+                validationMessage.textContent = 'This field is required';
+                validationMessage.classList.remove('hidden');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

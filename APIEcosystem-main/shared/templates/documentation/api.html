@@ -1,0 +1,108 @@
+{# shared/templates/documentation/api.html #}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Breadcrumb -->
+    <nav class="mb-8">
+        <ol class="flex items-center space-x-2 text-sm text-gray-500">
+            <li><a href="/docs" class="hover:text-gray-700">Documentation</a></li>
+            <li><i data-feather="chevron-right" class="w-4 h-4"></i></li>
+            <li class="font-medium text-gray-900">{{ api.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- API Header -->
+    <div class="bg-white rounded-lg border p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-blue-50 rounded-lg">
+                    <i data-feather="{{ api.interface.icon|default('box') }}" class="w-8 h-8 text-blue-500"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ api.name }}</h1>
+                    <p class="mt-1 text-lg text-gray-600">{{ api.description }}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    v{{ api.version }}
+                </span>
+                <a href="/api/{{ api.name|lower }}" 
+                   class="mt-2 inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                    <i data-feather="play" class="w-4 h-4 mr-2"></i>
+                    Try API
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Info Cards -->
+    <div class="grid gap-6 md:grid-cols-3 mb-8">
+        <!-- Accepted Files -->
+        <div class="bg-white rounded-lg border p-4">
+            <div class="flex items-center gap-3 mb-2">
+                <i data-feather="file" class="w-5 h-5 text-gray-400"></i>
+                <h3 class="font-medium">Accepted Files</h3>
+            </div>
+            <p class="text-gray-600">{{ api.interface.accepted_files }}</p>
+        </div>
+        
+        <!-- Parameters Count -->
+        <div class="bg-white rounded-lg border p-4">
+            <div class="flex items-center gap-3 mb-2">
+                <i data-feather="settings" class="w-5 h-5 text-gray-400"></i>
+                <h3 class="font-medium">Parameters</h3>
+            </div>
+            <p class="text-gray-600">{{ api.interface.parameter_fields|length }} configuration options</p>
+        </div>
+        
+        <!-- Base URL -->
+        <div class="bg-white rounded-lg border p-4">
+            <div class="flex items-center gap-3 mb-2">
+                <i data-feather="link" class="w-5 h-5 text-gray-400"></i>
+                <h3 class="font-medium">Base URL</h3>
+            </div>
+            <code class="text-sm text-gray-600">{{ api.url_prefix }}</code>
+        </div>
+    </div>
+
+    <!-- Parameters Section -->
+    <div class="bg-white rounded-lg border p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Parameters</h2>
+        <div class="grid gap-4 md:grid-cols-2">
+            {% for param in api.interface.parameter_fields %}
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="font-medium text-gray-900">{{ param|replace('_', ' ')|title }}</div>
+                <div class="text-sm text-gray-600 mt-1">
+                    Configuration parameter for {{ param|replace('_', ' ')|lower }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Usage Examples -->
+    <div class="bg-white rounded-lg border p-6">
+        <h2 class="text-xl font-semibold mb-4">Usage Example</h2>
+        <div class="space-y-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h3 class="font-medium mb-2">Basic Usage</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-600">
+                    <li>Navigate to the API interface</li>
+                    <li>Upload your {{ api.interface.accepted_files }} file(s)</li>
+                    <li>Configure the required parameters:
+                        <ul class="list-disc list-inside ml-4 mt-2">
+                            {% for param in api.interface.parameter_fields %}
+                            <li>{{ param|replace('_', ' ')|title }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    <li>Click "Process" to start the operation</li>
+                    <li>View your results in the output section</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

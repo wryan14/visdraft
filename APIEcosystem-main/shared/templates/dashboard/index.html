@@ -1,0 +1,91 @@
+{# shared/templates/dashboard/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Dashboard - API Ecosystem{% endblock %}
+
+{% block main_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Total APIs -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i data-feather="box" class="w-6 h-6"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-medium text-gray-900">Total APIs</h3>
+                    <p class="text-2xl font-semibold text-gray-700">{{ total_apis }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active APIs -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i data-feather="check-circle" class="w-6 h-6"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-medium text-gray-900">Active APIs</h3>
+                    <p class="text-2xl font-semibold text-gray-700">{{ active_apis }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <i data-feather="activity" class="w-6 h-6"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-medium text-gray-900">System Status</h3>
+                    <p class="text-2xl font-semibold text-gray-700">{{ system_status.uptime }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APIs List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Available APIs</h2>
+        </div>
+        <div class="divide-y divide-gray-200">
+            {% for api in apis %}
+            <div class="p-6 hover:bg-gray-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="p-2 rounded-md bg-gray-100">
+                            <i data-feather="{{ api.icon }}" class="w-5 h-5 text-gray-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900">{{ api.name }}</h3>
+                            <p class="text-sm text-gray-500">{{ api.description }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-500">v{{ api.version }}</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if api.status == 'Active' %}
+                                bg-green-100 text-green-800
+                            {% else %}
+                                bg-gray-100 text-gray-800
+                            {% endif %}
+                        ">
+                            {{ api.status }}
+                        </span>
+                        <a href="{{ api.url_prefix }}" 
+                           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            View API
+                            <i data-feather="arrow-right" class="ml-2 w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

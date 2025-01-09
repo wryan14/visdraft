@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Document Processing Interface</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Process Volume</h5>
+            <form id="processForm">
+                <div class="mb-3">
+                    <label for="volumeKey" class="form-label">Volume Title</label>
+                    <input type="text" class="form-control" id="volumeKey" required>
+                </div>
+                <div class="mb-3">
+                    <label for="volumeNumber" class="form-label">Volume Number</label>
+                    <input type="text" class="form-control" id="volumeNumber" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Process Volume</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="result" class="card d-none">
+        <div class="card-body">
+            <h5 class="card-title">Processing Result</h5>
+            <pre id="resultContent" class="bg-light p-3 rounded"></pre>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('processForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const volumeKey = document.getElementById('volumeKey').value;
+    const volumeNumber = document.getElementById('volumeNumber').value;
+    const resultDiv = document.getElementById('result');
+    const resultContent = document.getElementById('resultContent');
+
+    try {
+        const response = await fetch('/api/document-processing/process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                volume_key: volumeKey,
+                volume: volumeNumber
+            }),
+        });
+
+        const data = await response.json();
+        resultContent.textContent = JSON.stringify(data, null, 2);
+        resultDiv.classList.remove('d-none');
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Processing failed');
+        }
+    } catch (error) {
+        resultContent.textContent = `Error: ${error.message}`;
+        resultDiv.classList.remove('d-none');
+    }
+});
+</script>
+{% endblock %}

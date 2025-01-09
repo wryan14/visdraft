@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="h-screen flex flex-col">
+    <!-- Fixed Top Bar -->
+    <div class="bg-white border-b px-4 py-2 sticky top-0 z-10">
+        <div class="grid grid-cols-1 gap-4">
+            <!-- Volume and Processing Controls -->
+            <div class="flex space-x-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700">Select Volume</label>
+                    <select id="volume-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                        <option value="">Select a document...</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700">Database Title</label>
+                    <input type="text" id="database-title" class="mt-1 block w-full border-gray-300 rounded-md">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700">Author</label>
+                    <input type="text" id="author" class="mt-1 block w-full border-gray-300 rounded-md">
+                </div>
+                
+                <button id="process-document" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    Process Document
+                </button>
+            </div>
+
+            <!-- Delimiter Controls -->
+            <div class="flex space-x-4">
+                <button id="mark-selection" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                    Mark Selection
+                </button>
+                <button id="clear-markers" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                    Clear Markers
+                </button>
+                <button id="save-changes" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Status -->
+    <div id="processing-status" class="hidden">
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+                <h3 class="text-lg font-medium mb-4">Processing Document</h3>
+                <div class="space-y-4">
+                    <div id="status-steps" class="space-y-2">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full border-2 border-blue-500 mr-2"></div>
+                            <span>Extracting content...</span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Display -->
+    <div class="flex-1 overflow-auto p-4">
+        <div id="rendered-content" class="bg-white border rounded-lg p-4"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const volumeSelect = document.getElementById('volume-select');
+        const databaseTitle = document.getElementById('database-title');
+        const authorInput = document.getElementById('author');
+        const renderedContent = document.getElementById('rendered-content');
+        const processButton = document.getElementById('process-document');
+        const processingStatus = document.getElementById('processing-status');
+        const statusSteps = document.getElementById('status-steps');
+        const progressBar = document.getElementById('progress-bar');
+        const saveButton = document.getElementById('save-changes'); // New Save Button
+        
+        let currentVolume = null;
+    
+        // Load volumes
+        fetch('/api/text-extraction/volumes')
+            .then(response => response.json())
+            .then(volumes => {
+                volumes.forEach(volume => {
+                    const option = document.createElement('option');
+                    option.value = volume.number;
+                    option.textContent = `Volume ${volume.number}`;
+                    volumeSelect.appendChild(option);
+                });
+            });
+    
+        // Handle volume selection
+        volumeSelect.addEventListener('change', function() {
+            if (this.value) {
+                currentVolume = this.value;
+                fetch(`/api/text-extraction/content/${this.value}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        renderedContent.innerHTML = data.content;
+                    });
+            }
+        });
+    
+        // Process Document Button
+        processButton.addEventListener('click', async function() {
+            if (!currentVolume || !databaseTitle.value || !authorInput.value) {
+                alert('Please fill in all fields');
+                return;
+            }
+    
+            processingStatus.classList.remove('hidden');
+            updateStatus('Starting processing...', 0);
+    
+            try {
+                const response = await fetch('/api/text-extraction/process-document', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        volume: currentVolume,
+                        database_title: databaseTitle.value,
+                        author: authorInput.value,
+                        start_delimiter: '[START-wrmd88]', // Using your example delimiter
+                        end_delimiter: '[END-wrmd88]'
+                    })
+                });
+    
+                const result = await response.json();
+    
+                if (result.status === 'success') {
+                    updateStatus('Processing complete!', 100);
+                    setTimeout(() => {
+                        processingStatus.classList.add('hidden');
+                    }, 2000);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 100, true);
+                setTimeout(() => {
+                    processingStatus.classList.add('hidden');
+                }, 3000);
+            }
+        });
+    
+        // Status update helper
+        function updateStatus(message, progress, isError = false) {
+            const step = document.createElement('div');
+            step.className = 'flex items-center';
+            step.innerHTML = `
+                <div class="w-4 h-4 rounded-full border-2 ${isError ? 'border-red-500' : 'border-blue-500'} mr-2"></div>
+                <span>${message}</span>
+            `;
+            statusSteps.appendChild(step);
+            progressBar.style.width = `${progress}%`;
+            progressBar.scrollIntoView({ behavior: 'smooth' });
+        }
+    
+        // Mark selection
+        document.getElementById('mark-selection').addEventListener('click', function() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                alert('Please select some text first');
+                return;
+            }
+    
+            const range = selection.getRangeAt(0);
+            
+            // Create start and end markers
+            const startMarker = document.createElement('span');
+            startMarker.textContent = '[START-wrmd88]';
+            startMarker.className = 'text-blue-600 font-bold';
+            
+            const endMarker = document.createElement('span');
+            endMarker.textContent = '[END-wrmd88]';
+            endMarker.className = 'text-blue-600 font-bold';
+    
+            // Create proper ranges for start and end
+            const startRange = range.cloneRange();
+            const endRange = range.cloneRange();
+            
+            // Set start range to beginning of selection
+            startRange.collapse(true);
+            startRange.insertNode(startMarker);
+            
+            // Set end range to end of selection
+            endRange.collapse(false);
+            endRange.insertNode(endMarker);
+        });
+    
+        // Clear markers
+        document.getElementById('clear-markers').addEventListener('click', function() {
+            if (!currentVolume) {
+                alert('Please select a document first');
+                return;
+            }
+    
+            fetch(`/api/text-extraction/content/${currentVolume}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderedContent.innerHTML = data.content;
+                });
+        });
+    
+        // Save Changes Button
+        saveButton.addEventListener('click', async function() {
+            if (!currentVolume) {
+                alert('Please select a document first');
+                return;
+            }
+    
+            const contentToSave = renderedContent.innerHTML;
+    
+            try {
+                const response = await fetch('/api/text-extraction/save-content', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        volume: currentVolume,
+                        content: contentToSave
+                    })
+                });
+    
+                const result = await response.json();
+    
+                if (result.status === 'success') {
+                    alert('Content saved successfully');
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert(`Error saving content: ${error.message}`);
+            }
+        });
+    });
+    </script>
+    
+{% endblock %}
